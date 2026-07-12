@@ -2,6 +2,18 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta http-equiv="X-Content-Type-Options" content="nosniff"/>
+<meta http-equiv="X-Frame-Options" content="SAMEORIGIN"/>
+<meta http-equiv="X-XSS-Protection" content="1; mode=block"/>
+<meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin"/>
+<meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()"/>
+<meta name="description" content="NEXORA Field Intelligence Platform — Go Paperless, Save Trees. Powered by A Thousand Words Foundation."/>
+<meta name="theme-color" content="#05080f"/>
+<!-- NEXORA Field Intelligence Platform -->
+<!-- © 2026 V SCHALKWYK'S · All Rights Reserved -->
+<!-- Unauthorized copying, modification or distribution is strictly prohibited -->
+<!-- Powered by A Thousand Words Foundation · nexorapaperfree.org -->
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>NEXORA Field Intelligence</title>
 <meta name="theme-color" content="#05080f"/>
@@ -64,6 +76,78 @@ window.onerror=function(msg,src,line,col,err){
   <div style="text-align:center;color:#8B5CF6;font-size:18px;font-weight:700">Loading NEXORA...</div>
 </div>
 <script>
+
+
+// ── NEXORA CODE PROTECTION ──────────────────────────────
+// © 2026 V SCHALKWYK'S · All Rights Reserved
+// Unauthorized modification strictly prohibited
+
+(function(){
+  // Disable right click
+  document.addEventListener("contextmenu", function(e){
+    e.preventDefault();
+    return false;
+  });
+  
+  // Disable keyboard shortcuts for inspect/copy
+  document.addEventListener("keydown", function(e){
+    // F12 - DevTools
+    if(e.key==="F12"){e.preventDefault();return false;}
+    // Ctrl+Shift+I - Inspect
+    if(e.ctrlKey&&e.shiftKey&&e.key==="I"){e.preventDefault();return false;}
+    // Ctrl+Shift+J - Console
+    if(e.ctrlKey&&e.shiftKey&&e.key==="J"){e.preventDefault();return false;}
+    // Ctrl+Shift+C - Inspector
+    if(e.ctrlKey&&e.shiftKey&&e.key==="C"){e.preventDefault();return false;}
+    // Ctrl+U - View source
+    if(e.ctrlKey&&e.key==="u"){e.preventDefault();return false;}
+    // Ctrl+S - Save page
+    if(e.ctrlKey&&e.key==="s"){e.preventDefault();return false;}
+  });
+  
+  // Detect DevTools open
+  var devtools={open:false};
+  var threshold=160;
+  setInterval(function(){
+    if(window.outerWidth-window.innerWidth>threshold||
+       window.outerHeight-window.innerHeight>threshold){
+      if(!devtools.open){
+        devtools.open=true;
+        document.body.innerHTML="";
+        document.body.style.background="#05080f";
+        document.body.style.display="flex";
+        document.body.style.alignItems="center";
+        document.body.style.justifyContent="center";
+        document.body.style.height="100vh";
+        document.body.style.flexDirection="column";
+        document.body.style.color="#8B5CF6";
+        document.body.style.fontFamily="Arial,sans-serif";
+        document.body.style.textAlign="center";
+        document.body.innerHTML=
+          "<div style='font-size:48px;margin-bottom:20px'>🔒</div>"+
+          "<div style='font-size:22px;font-weight:900;letter-spacing:3px;margin-bottom:10px'>NEXORA</div>"+
+          "<div style='font-size:14px;color:#94A3B8;margin-bottom:20px'>This platform is protected.</div>"+
+          "<div style='font-size:12px;color:#3D5270'>© 2026 V SCHALKWYK'S · All Rights Reserved</div>"+
+          "<div style='margin-top:20px'><button onclick='location.reload()' style='background:#8B5CF6;color:#fff;border:none;padding:12px 24px;border-radius:9px;cursor:pointer;font-size:14px;font-weight:700'>↩ Return to NEXORA</button></div>";
+      }
+    } else {
+      devtools.open=false;
+    }
+  }, 500);
+
+  // Disable text selection on sensitive areas
+  document.addEventListener("selectstart", function(e){
+    if(e.target.tagName!=="INPUT"&&e.target.tagName!=="TEXTAREA"){
+      e.preventDefault();
+    }
+  });
+
+  // Watermark in console
+  console.log("%c🚀 NEXORA Field Intelligence Platform","color:#8B5CF6;font-size:16px;font-weight:900");
+  console.log("%c© 2026 V SCHALKWYK'S · All Rights Reserved","color:#06B6D4;font-size:12px");
+  console.log("%cUnauthorized access to this code is strictly prohibited.","color:#EF4444;font-size:11px");
+  console.log("%csupport@nexorapaperfree.org","color:#94A3B8;font-size:11px");
+})();
 
 // ── NEXORA CORE ───────────────────────────────────────────
 var C={bg:"#05080f",panel:"#090d18",card:"#0d1525",bdr:"#151f35",bdrG:"#1e2d4a",
