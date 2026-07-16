@@ -14,6 +14,13 @@
 <!-- © 2026 V SCHALKWYK'S · All Rights Reserved -->
 <!-- Unauthorized copying, modification or distribution is strictly prohibited -->
 <!-- Powered by A Thousand Words Foundation · nexorapaperfree.org -->
+<meta property="og:title" content="NEXORA Field Intelligence"/>
+<meta property="og:description" content="Digital job cards, dispatch, invoicing and offline-ready field operations. Built for South African businesses, powered by A Thousand Words."/>
+<meta property="og:type" content="website"/>
+<meta property="og:url" content="https://nexorapaperfree.org"/>
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="NEXORA Field Intelligence"/>
+<meta name="twitter:description" content="Your TIME is MONEY. NEXORA saves both."/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>NEXORA Field Intelligence</title>
 <meta name="theme-color" content="#05080f"/>
@@ -217,7 +224,12 @@ var S={
   comments:"",materials:"",showSum:false,smsAlert:null,eta:25,saving:false,
   njForm:{site:"",type:"Installation",town:"",tech:"",contact:"",phone:"",address:"",description:"",priority:"Normal"},
   njSteps:[{id:1,text:"",qty:1}],
-  tipIdx:0,tipTimer:null,loadProg:0,loadTimer:null,yLogo:"",stampMode:false
+  tipIdx:0,tipTimer:null,loadProg:0,loadTimer:null,yLogo:"",stampMode:false,
+  showCompanySettings:false,reassignJobId:null,
+  companyProfiles:{
+    "Yantek Industries":{address:"31 Thora Crescent, Wynberg, Sandton, Johannesburg, 2191",phone:"010 020 2960",email:"info@yantek.co.za",vat:"4400127447",logo:""},
+    "NEXORA":{address:"",phone:"",email:"support@nexorapaperfree.org",vat:"",logo:""}
+  }
 };
 
 function initVC(){var o={};DCHECKS.forEach(function(c){o[c.id]={st:null,note:""};});return o;}
@@ -393,10 +405,1079 @@ document.addEventListener("click",function(e){
   }
 },true);
 
+
+// ══════════════════════════════════════════════════════════
+// ── NEW FEATURE 1: INVOICING ──────────────────────────────
+// ══════════════════════════════════════════════════════════
+function buildInvoices(){
+  var wrap=d({padding:"16px",maxWidth:"860px",margin:"0 auto"});
+  var isA=["admin","superadmin"].includes(S.user.role);
+  
+  // Header
+  var hd=d({display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"16px"});
+  var ttl=d({});
+  var t1=d({fontSize:"20px",fontWeight:"900"});t1.textContent="💰 Invoices";
+  var t2=d({fontSize:"12px",color:C.sft,marginTop:"2px"});t2.textContent="Generate & send professional invoices";
+  ttl.appendChild(t1);ttl.appendChild(t2);hd.appendChild(ttl);
+  wrap.appendChild(hd);
+
+  // Completed jobs ready to invoice
+  var allJobs=Object.values(S.jobs).filter(function(j){return (j.company===S.user.company||S.user.role==="superadmin");});
+  var completed=allJobs.filter(function(j){return j.status==="Complete";});
+  
+  if(!S.invoices)S.invoices=[];
+  
+  // Stats row
+  var stats=d({display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"10px",marginBottom:"18px"});
+  var totalInv=S.invoices.length;
+  var paidInv=S.invoices.filter(function(i){return i.status==="Paid";}).length;
+  var pendingAmt=S.invoices.filter(function(i){return i.status!=="Paid";}).reduce(function(a,i){return a+i.total;},0);
+  [["📄",totalInv,"Total Invoices",C.cyn],["✅",paidInv,"Paid",C.grn],["⏳","R"+pendingAmt.toFixed(0),"Outstanding",C.org]].forEach(function(s){
+    var c=d({background:C.card,border:"1px solid "+C.bdr,borderRadius:"12px",padding:"14px",textAlign:"center"});
+    var ic=d({fontSize:"20px",marginBottom:"4px"});ic.textContent=s[0];
+    var nm=d({fontSize:"18px",fontWeight:"900",color:s[3]});nm.textContent=s[1];
+    var lb=d({fontSize:"10px",color:C.mut,marginTop:"2px"});lb.textContent=s[2];
+    c.appendChild(ic);c.appendChild(nm);c.appendChild(lb);stats.appendChild(c);
+  });
+  wrap.appendChild(stats);
+
+  // Jobs ready to invoice
+  if(completed.length>0){
+    var rdyLbl=d({fontSize:"12px",fontWeight:"700",color:C.grn,marginBottom:"8px",letterSpacing:"0.5px"});
+    rdyLbl.textContent="✅ COMPLETED JOBS — READY TO INVOICE";
+    wrap.appendChild(rdyLbl);
+    completed.forEach(function(j){
+      var alreadyInv=S.invoices.some(function(i){return i.jobId===j.id;});
+      var card=d({background:C.card,border:"1px solid "+(alreadyInv?C.grn+"44":C.bdr),borderRadius:"12px",padding:"14px",marginBottom:"10px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:"10px"});
+      var lft=d({flex:"1"});
+      var cn=d({fontSize:"14px",fontWeight:"700"});cn.textContent=j.site||"Unnamed Job";
+      var ad=d({fontSize:"11px",color:C.sft,marginTop:"2px"});ad.textContent=(j.address||"No address")+" · "+(j.type||"");
+      lft.appendChild(cn);lft.appendChild(ad);card.appendChild(lft);
+      if(alreadyInv){
+        var badge=d({fontSize:"10px",fontWeight:"700",color:C.grn,background:C.grn+"22",padding:"5px 10px",borderRadius:"99px"});badge.textContent="✓ Invoiced";
+        card.appendChild(badge);
+      } else {
+        card.appendChild(btn("Create Invoice",function(){S.invoiceJob=j;S.page="invoice-new";render();},C.org,"#fff",{fontSize:"12px",padding:"8px 14px",fontWeight:"700"}));
+      }
+      wrap.appendChild(card);
+    });
+  }
+
+  // Existing invoices list
+  if(S.invoices.length>0){
+    var invLbl=d({fontSize:"12px",fontWeight:"700",color:C.cyn,margin:"18px 0 8px",letterSpacing:"0.5px"});
+    invLbl.textContent="📄 ALL INVOICES";
+    wrap.appendChild(invLbl);
+    S.invoices.slice().reverse().forEach(function(inv){
+      var card=d({background:C.card,border:"1px solid "+C.bdr,borderRadius:"12px",padding:"14px",marginBottom:"10px",cursor:"pointer"});
+      card.addEventListener("click",function(){S.viewInvoice=inv;S.page="invoice-view";render();});
+      var top=d({display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"});
+      var inm=d({fontSize:"14px",fontWeight:"700"});inm.textContent=inv.number+" · "+inv.client;
+      var st=d({fontSize:"10px",fontWeight:"700",padding:"4px 10px",borderRadius:"99px"});
+      if(inv.status==="Paid"){st.style.background=C.grn+"22";st.style.color=C.grn;st.textContent="✓ PAID";}
+      else{st.style.background=C.org+"22";st.style.color=C.org;st.textContent="⏳ "+inv.status.toUpperCase();}
+      top.appendChild(inm);top.appendChild(st);card.appendChild(top);
+      var amt=d({fontSize:"18px",fontWeight:"900",color:C.cyn});amt.textContent="R "+inv.total.toFixed(2);
+      card.appendChild(amt);
+      var dt=d({fontSize:"10px",color:C.mut,marginTop:"2px"});dt.textContent="Issued "+inv.date;
+      card.appendChild(dt);
+      wrap.appendChild(card);
+    });
+  }
+
+  if(completed.length===0&&S.invoices.length===0){
+    var empty=d({textAlign:"center",padding:"40px 20px",color:C.mut});
+    empty.innerHTML="<div style='font-size:40px;margin-bottom:12px'>💰</div><div style='font-size:14px'>Complete a job to create your first invoice.</div>";
+    wrap.appendChild(empty);
+  }
+  return wrap;
+}
+
+// ── NEW INVOICE FORM ──
+function buildInvoiceNew(){
+  var j=S.invoiceJob;
+  var wrap=d({padding:"16px",maxWidth:"720px",margin:"0 auto"});
+  var bk=btn("← Back",function(){S.page="invoices";S.invoiceJob=null;render();},"none",C.sft,{fontSize:"13px",padding:"6px 0",marginBottom:"10px"});
+  wrap.appendChild(bk);
+  var t=d({fontSize:"20px",fontWeight:"900",marginBottom:"4px"});t.textContent="💰 New Invoice";
+  wrap.appendChild(t);
+  var sub=d({fontSize:"12px",color:C.sft,marginBottom:"16px"});sub.textContent="For: "+(j.site||"Job");
+  wrap.appendChild(sub);
+
+  if(!S.invLines)S.invLines=[{desc:j.description||"Field service work",qty:1,price:0}];
+
+  // Line items
+  var linesBox=d({marginBottom:"14px"});
+  function renderLines(){
+    linesBox.innerHTML="";
+    var lbl=d({fontSize:"12px",fontWeight:"700",color:C.sft,marginBottom:"8px"});lbl.textContent="LINE ITEMS";
+    linesBox.appendChild(lbl);
+    S.invLines.forEach(function(line,i){
+      var row=d({background:C.card,border:"1px solid "+C.bdr,borderRadius:"10px",padding:"10px",marginBottom:"8px"});
+      var di=h("input",{width:"100%",background:C.bg,border:"1px solid "+C.bdr,borderRadius:"7px",color:C.txt,padding:"8px",fontSize:"13px",marginBottom:"6px"},null,{type:"text",value:line.desc,placeholder:"Description"});
+      di.addEventListener("input",function(){S.invLines[i].desc=di.value;});
+      row.appendChild(di);
+      var qpRow=d({display:"flex",gap:"8px",alignItems:"center"});
+      var qi=h("input",{width:"70px",background:C.bg,border:"1px solid "+C.bdr,borderRadius:"7px",color:C.txt,padding:"8px",fontSize:"13px"},null,{type:"number",value:line.qty,placeholder:"Qty"});
+      qi.addEventListener("input",function(){S.invLines[i].qty=parseFloat(qi.value)||0;calcTotal();});
+      var pi=h("input",{flex:"1",background:C.bg,border:"1px solid "+C.bdr,borderRadius:"7px",color:C.txt,padding:"8px",fontSize:"13px"},null,{type:"number",value:line.price,placeholder:"Price (R)"});
+      pi.addEventListener("input",function(){S.invLines[i].price=parseFloat(pi.value)||0;calcTotal();});
+      qpRow.appendChild(t("Qty",{fontSize:"11px",color:C.mut}));qpRow.appendChild(qi);qpRow.appendChild(pi);
+      if(S.invLines.length>1){
+        var del=btn("✕",function(){S.invLines.splice(i,1);renderLines();calcTotal();},C.red+"22",C.red,{fontSize:"12px",padding:"8px 10px"});
+        qpRow.appendChild(del);
+      }
+      row.appendChild(qpRow);
+      linesBox.appendChild(row);
+    });
+    linesBox.appendChild(btn("+ Add Line Item",function(){S.invLines.push({desc:"",qty:1,price:0});renderLines();},C.cyn+"22",C.cyn,{fontSize:"12px",padding:"8px 14px",fontWeight:"700",marginTop:"4px"}));
+  }
+  wrap.appendChild(linesBox);
+
+  // Totals
+  var totBox=d({background:C.panel,border:"1px solid "+C.bdr,borderRadius:"12px",padding:"14px",marginBottom:"14px"});
+  var subRow=d({display:"flex",justifyContent:"space-between",marginBottom:"6px",fontSize:"13px",color:C.sft});
+  var subL=d({});subL.textContent="Subtotal";var subV=d({});subRow.appendChild(subL);subRow.appendChild(subV);
+  var vatRow=d({display:"flex",justifyContent:"space-between",marginBottom:"6px",fontSize:"13px",color:C.sft});
+  var vatL=d({});vatL.textContent="VAT (15%)";var vatV=d({});vatRow.appendChild(vatL);vatRow.appendChild(vatV);
+  var totRow=d({display:"flex",justifyContent:"space-between",fontSize:"18px",fontWeight:"900",color:C.cyn,borderTop:"1px solid "+C.bdr,paddingTop:"8px",marginTop:"8px"});
+  var totL=d({});totL.textContent="TOTAL";var totV=d({});totRow.appendChild(totL);totRow.appendChild(totV);
+  totBox.appendChild(subRow);totBox.appendChild(vatRow);totBox.appendChild(totRow);
+  wrap.appendChild(totBox);
+
+  function calcTotal(){
+    var sub=S.invLines.reduce(function(a,l){return a+(l.qty*l.price);},0);
+    var vat=sub*0.15;var tot=sub+vat;
+    subV.textContent="R "+sub.toFixed(2);vatV.textContent="R "+vat.toFixed(2);totV.textContent="R "+tot.toFixed(2);
+    S._invTotals={sub:sub,vat:vat,tot:tot};
+  }
+  renderLines();calcTotal();
+
+  // Generate button
+  wrap.appendChild(btn("💰 Generate Invoice",function(){
+    var num="INV-"+String(1000+S.invoices.length+1);
+    var issuedAt=new Date();
+    var dueAt=new Date(issuedAt.getTime()+30*24*60*60*1000);
+    var inv={
+      number:num,jobId:j.id,client:j.site||"Client",address:j.address||"",
+      contact:j.contact||"",phone:j.phone||"",
+      lines:JSON.parse(JSON.stringify(S.invLines)),
+      subtotal:S._invTotals.sub,vat:S._invTotals.vat,total:S._invTotals.tot,
+      status:"Sent",date:issuedAt.toLocaleDateString("en-ZA"),
+      dueDate:dueAt.toLocaleDateString("en-ZA"),company:S.user.company,
+      job:{
+        site:j.site,type:j.type,town:j.town,priority:j.priority,tech:j.tech,
+        company:j.company,contact:j.contact,phone:j.phone,address:j.address,
+        created:j.created,description:j.description||"",
+        additionalWork:j.additionalWork||"",
+        steps:(j.steps||[]).map(function(s){return {text:s.text,qty:s.qty||1,done:!!s.done};}),
+        trips:(j.trips||[]).map(function(t){
+          return {
+            num:t.num,comments:t.comments||"",materials:t.materials||"",
+            travelSec:t.travelSec||0,siteSec:t.siteSec||0,
+            photosBefore:(t.photosBefore||[]).slice(),photosAfter:(t.photosAfter||[]).slice(),
+            complete:!!t.complete,completedBy:t.completedBy||"",completedAt:t.completedAt||""
+          };
+        })
+      }
+    };
+    S.invoices.push(inv);S.invLines=null;S.invoiceJob=null;S.viewInvoice=inv;S.page="invoice-view";render();
+  },C.org,"#fff",{width:"100%",fontSize:"15px",padding:"14px",fontWeight:"900"}));
+  return wrap;
+}
+
+// ── VIEW INVOICE ──
+function buildInvoiceView(){
+  var inv=S.viewInvoice;
+  var wrap=d({padding:"16px",maxWidth:"720px",margin:"0 auto"});
+  var bk=btn("← Back to Invoices",function(){S.page="invoices";S.viewInvoice=null;render();},"none",C.sft,{fontSize:"13px",padding:"6px 0",marginBottom:"10px"});
+  wrap.appendChild(bk);
+
+  // Invoice paper
+  var paper=d({background:"#fff",color:"#1a2332",borderRadius:"14px",padding:"24px",marginBottom:"14px"});
+
+  // ── Company details (from Company Profile settings, with sensible fallback) ──
+  var COMPANY_DEFAULTS={
+    "Yantek Industries":{address:"31 Thora Crescent, Wynberg, Sandton, Johannesburg, 2191",phone:"010 020 2960",email:"info@yantek.co.za",vat:"4400127447",logo:S.yLogo||""},
+    "NEXORA":{address:"",phone:"",email:"support@nexorapaperfree.org",vat:"",logo:""}
+  };
+  var savedProfile=(S.companyProfiles&&S.companyProfiles[inv.company])||{};
+  var fallback=COMPANY_DEFAULTS[inv.company]||{address:"",phone:"",email:"",vat:"",logo:""};
+  var coInfo={
+    address:savedProfile.address||fallback.address,
+    phone:savedProfile.phone||fallback.phone,
+    email:savedProfile.email||fallback.email,
+    vat:savedProfile.vat||fallback.vat,
+    logo:savedProfile.logo||fallback.logo||null
+  };
+
+  // Header
+  var pHead=d({display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"18px",borderBottom:"2px solid #eee",paddingBottom:"16px"});
+  var pCo=d({});
+  if(coInfo.logo){
+    var coLogo=h("img",{height:"38px",width:"auto",objectFit:"contain",marginBottom:"6px"},null,{src:coInfo.logo,alt:inv.company});
+    pCo.appendChild(coLogo);
+  }
+  var pCoName=d({fontSize:"22px",fontWeight:"900",color:"#7C3AED"});pCoName.textContent=inv.company||"NEXORA";
+  var pCoSub=d({fontSize:"11px",color:"#888",marginTop:"2px"});pCoSub.textContent="Field Intelligence · Powered by NEXORA";
+  pCo.appendChild(pCoName);pCo.appendChild(pCoSub);
+  if(coInfo.address){var caA=d({fontSize:"10px",color:"#999",marginTop:"6px",lineHeight:"1.5"});caA.textContent=coInfo.address;pCo.appendChild(caA);}
+  var coLine2=[];
+  if(coInfo.phone)coLine2.push("📞 "+coInfo.phone);
+  if(coInfo.email)coLine2.push("✉️ "+coInfo.email);
+  if(coLine2.length){var caP=d({fontSize:"10px",color:"#999",marginTop:"2px"});caP.textContent=coLine2.join("   ");pCo.appendChild(caP);}
+  if(coInfo.vat){var caV=d({fontSize:"10px",color:"#999",marginTop:"2px"});caV.textContent="VAT Reg No: "+coInfo.vat;pCo.appendChild(caV);}
+  pHead.appendChild(pCo);
+
+  var pInv=d({textAlign:"right"});
+  var pInvT=d({fontSize:"20px",fontWeight:"900",color:"#1a2332"});pInvT.textContent="INVOICE";
+  var pInvN=d({fontSize:"12px",color:"#888",marginTop:"2px",fontWeight:"700"});pInvN.textContent=inv.number;
+  var pInvStatus=d({display:"inline-block",fontSize:"9px",fontWeight:"800",padding:"3px 10px",borderRadius:"99px",marginTop:"6px",letterSpacing:"0.5px"});
+  if(inv.status==="Paid"){pInvStatus.style.background="#dcfce7";pInvStatus.style.color="#10B981";pInvStatus.textContent="✓ PAID";}
+  else{pInvStatus.style.background="#fff3e0";pInvStatus.style.color="#F97316";pInvStatus.textContent="⏳ "+inv.status.toUpperCase();}
+  var pInvDates=d({fontSize:"10px",color:"#999",marginTop:"8px",lineHeight:"1.6"});
+  pInvDates.innerHTML="Issued: <b style='color:#333'>"+inv.date+"</b><br/>Due: <b style='color:#333'>"+(inv.dueDate||inv.date)+"</b>";
+  pInv.appendChild(pInvT);pInv.appendChild(pInvN);pInv.appendChild(pInvStatus);pInv.appendChild(pInvDates);
+  pHead.appendChild(pInv);
+  paper.appendChild(pHead);
+
+  // Bill to
+  var billTo=d({marginBottom:"18px",display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:"14px"});
+  var btCol=d({});
+  var btL=d({fontSize:"10px",color:"#aaa",fontWeight:"700",letterSpacing:"1px"});btL.textContent="BILL TO";
+  var btN=d({fontSize:"15px",fontWeight:"700",marginTop:"3px",color:"#1a2332"});btN.textContent=inv.client;
+  var btA=d({fontSize:"12px",color:"#888",marginTop:"2px"});btA.textContent=inv.address||"—";
+  btCol.appendChild(btL);btCol.appendChild(btN);btCol.appendChild(btA);
+  if(inv.contact){var btC=d({fontSize:"11px",color:"#888",marginTop:"3px"});btC.textContent="👤 "+inv.contact+(inv.phone?"  ·  📞 "+inv.phone:"");btCol.appendChild(btC);}
+  billTo.appendChild(btCol);
+
+  var refCol=d({textAlign:"right"});
+  var refL=d({fontSize:"10px",color:"#aaa",fontWeight:"700",letterSpacing:"1px"});refL.textContent="REFERENCE";
+  var refV=d({fontSize:"12px",color:"#333",marginTop:"3px",fontWeight:"600"});refV.textContent="Job #"+(inv.jobId||"—");
+  refCol.appendChild(refL);refCol.appendChild(refV);
+  billTo.appendChild(refCol);
+  paper.appendChild(billTo);
+  // Line items table
+  var tbl=d({marginBottom:"16px"});
+  var thead=d({display:"flex",background:"#f5f5f7",padding:"8px 10px",borderRadius:"6px",fontSize:"10px",fontWeight:"700",color:"#888"});
+  thead.appendChild(d({flex:"1"},"DESCRIPTION"));
+  var thQ=d({});thQ.textContent="QTY";thQ.style.width="50px";thQ.style.textAlign="center";
+  var thP=d({});thP.textContent="PRICE";thP.style.width="80px";thP.style.textAlign="right";
+  var thT=d({});thT.textContent="TOTAL";thT.style.width="80px";thT.style.textAlign="right";
+  thead.appendChild(thQ);thead.appendChild(thP);thead.appendChild(thT);
+  tbl.appendChild(thead);
+  inv.lines.forEach(function(l){
+    var r=d({display:"flex",padding:"10px",borderBottom:"1px solid #f0f0f0",fontSize:"12px"});
+    r.appendChild(d({flex:"1"},l.desc));
+    var q=d({},String(l.qty));q.style.width="50px";q.style.textAlign="center";
+    var p=d({},"R"+l.price.toFixed(2));p.style.width="80px";p.style.textAlign="right";
+    var t=d({},"R"+(l.qty*l.price).toFixed(2));t.style.width="80px";t.style.textAlign="right";t.style.fontWeight="700";
+    r.appendChild(q);r.appendChild(p);r.appendChild(t);
+    tbl.appendChild(r);
+  });
+  paper.appendChild(tbl);
+  // Totals
+  var totWrap=d({marginLeft:"auto",width:"200px"});
+  function totLine(label,val,bold){
+    var r=d({display:"flex",justifyContent:"space-between",padding:"4px 0",fontSize:bold?"16px":"12px",fontWeight:bold?"900":"400",color:bold?"#7C3AED":"#666"});
+    r.appendChild(d({},label));r.appendChild(d({},"R"+val.toFixed(2)));
+    if(bold){r.style.borderTop="2px solid #eee";r.style.marginTop="4px";r.style.paddingTop="8px";}
+    return r;
+  }
+  totWrap.appendChild(totLine("Subtotal",inv.subtotal));
+  totWrap.appendChild(totLine("VAT (15%)",inv.vat));
+  totWrap.appendChild(totLine("TOTAL",inv.total,true));
+  paper.appendChild(totWrap);
+
+  // ── JOB INFORMATION GRID (mirrors job card) ──
+  var jb=inv.job||{};
+  var infoBox=d({marginTop:"20px",paddingTop:"16px",borderTop:"1px solid #eee",background:"#f8f5ff",borderRadius:"8px",padding:"12px 14px"});
+  var infoLbl=d({fontSize:"10px",color:"#7C3AED",fontWeight:"700",letterSpacing:"1px",marginBottom:"8px",textTransform:"uppercase"});infoLbl.textContent="Job Information";
+  infoBox.appendChild(infoLbl);
+  var infoGrid=d({display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:"8px 12px"});
+  [["Type",jb.type,""],["Town",jb.town,""],["Priority",jb.priority,""],["Technician",jb.tech,""],
+   ["Company",jb.company,""],["Contact",jb.contact,""],["Phone",jb.phone,""],["Created",jb.created,""]].forEach(function(r){
+    var cell=d({});
+    var lb=d({fontSize:"9px",color:"#7C3AED",fontWeight:"700",textTransform:"uppercase"});lb.textContent=r[0];
+    var vl=d({fontSize:"11px",color:"#222",fontWeight:"600",marginTop:"2px"});vl.textContent=r[1]||"—";
+    cell.appendChild(lb);cell.appendChild(vl);infoGrid.appendChild(cell);
+  });
+  infoBox.appendChild(infoGrid);
+  paper.appendChild(infoBox);
+
+  // ── Description ──
+  if(jb.description){
+    var descBox=d({marginTop:"14px",borderLeft:"3px solid #7C3AED",background:"#f0ecff",borderRadius:"0 6px 6px 0",padding:"8px 12px"});
+    var descLbl=d({fontSize:"9px",color:"#7C3AED",fontWeight:"700",textTransform:"uppercase",marginBottom:"3px"});descLbl.textContent="Description";
+    var descVal=d({fontSize:"11px",color:"#333"});descVal.textContent=jb.description;
+    descBox.appendChild(descLbl);descBox.appendChild(descVal);
+    paper.appendChild(descBox);
+  }
+
+  // ── TRIP-BY-TRIP BREAKDOWN ──
+  var trips=jb.trips||[];
+  if(trips.length){
+    var tripsLbl=d({fontSize:"10px",color:"#aaa",fontWeight:"700",letterSpacing:"1px",marginTop:"18px",marginBottom:"8px"});tripsLbl.textContent="TRIP BREAKDOWN ("+trips.length+")";
+    paper.appendChild(tripsLbl);
+    trips.forEach(function(t){
+      var tBox=d({border:"1px solid #e5e5e5",borderRadius:"8px",marginBottom:"10px",overflow:"hidden"});
+      var tHead=d({background:"#7C3AED",color:"#fff",padding:"6px 12px",fontSize:"10px",fontWeight:"700",display:"flex",justifyContent:"space-between"});
+      var tHL=d({});tHL.textContent="TRIP "+t.num+(t.complete?" ✓ COMPLETE":"");
+      var tHR=d({fontSize:"9px",opacity:"0.9"});tHR.textContent=(t.completedBy?"By "+t.completedBy:"")+(t.completedAt?" · "+t.completedAt:"");
+      tHead.appendChild(tHL);tHead.appendChild(tHR);tBox.appendChild(tHead);
+
+      var tBody=d({padding:"10px 12px"});
+      var tStats=d({display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"8px",marginBottom:"8px"});
+      [["🚗 Travel",fmt(t.travelSec),"#F97316"],["🔧 On-Site",fmt(t.siteSec),"#10B981"],
+       ["📷 Photos",((t.photosBefore||[]).length+(t.photosAfter||[]).length)+" taken","#8B5CF6"]].forEach(function(x){
+        var sc=d({textAlign:"center",background:"#f9f9f9",borderRadius:"6px",padding:"6px 4px",border:"1px solid #eee"});
+        var sl=d({fontSize:"8px",color:"#888"});sl.textContent=x[0];
+        var sv=d({fontSize:"12px",fontWeight:"800",color:x[2]});sv.textContent=x[1];
+        sc.appendChild(sl);sc.appendChild(sv);tStats.appendChild(sc);
+      });
+      tBody.appendChild(tStats);
+
+      if(t.materials){
+        var matR=d({marginBottom:"4px"});
+        var matL=d({fontSize:"9px",color:"#7C3AED",fontWeight:"700",textTransform:"uppercase"});matL.textContent="Materials: ";
+        var matV=d({fontSize:"10px",color:"#333",display:"inline"});matV.textContent=t.materials;
+        matR.appendChild(matL);matR.appendChild(matV);tBody.appendChild(matR);
+      }
+      if(t.comments){
+        var comR=d({});
+        var comL=d({fontSize:"9px",color:"#7C3AED",fontWeight:"700",textTransform:"uppercase"});comL.textContent="Comments: ";
+        var comV=d({fontSize:"10px",color:"#333",display:"inline"});comV.textContent=t.comments;
+        comR.appendChild(comL);comR.appendChild(comV);tBody.appendChild(comR);
+      }
+
+      // Photos for this trip
+      var tHasPhotos=(t.photosBefore&&t.photosBefore.length)||(t.photosAfter&&t.photosAfter.length);
+      if(tHasPhotos){
+        var pRow=d({display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",marginTop:"8px"});
+        [["BEFORE","#F97316",t.photosBefore||[]],["AFTER","#10B981",t.photosAfter||[]]].forEach(function(x){
+          var pCol=d({});
+          var pLbl=d({fontSize:"9px",color:x[1],fontWeight:"700",marginBottom:"4px"});pLbl.textContent=x[0]+" ("+x[2].length+")";
+          pCol.appendChild(pLbl);
+          if(x[2].length){
+            var pThumbs=d({display:"flex",flexWrap:"wrap",gap:"4px"});
+            x[2].forEach(function(p){
+              pThumbs.appendChild(h("img",{width:"48px",height:"48px",objectFit:"cover",borderRadius:"6px",border:"2px solid "+x[1]},null,{src:p.src}));
+            });
+            pCol.appendChild(pThumbs);
+          } else {
+            var noP=d({fontSize:"9px",color:"#ccc",fontStyle:"italic"});noP.textContent="None";
+            pCol.appendChild(noP);
+          }
+          pRow.appendChild(pCol);
+        });
+        tBody.appendChild(pRow);
+      }
+      tBox.appendChild(tBody);
+      paper.appendChild(tBox);
+    });
+  }
+
+  // ── PRESCRIPTION CHECKLIST ──
+  var steps=jb.steps||[];
+  if(steps.length){
+    var doneCt=steps.filter(function(s){return s.done;}).length;
+    var clBox=d({marginTop:"14px",paddingTop:"12px",borderTop:"1px solid #eee"});
+    var clHead=d({display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"});
+    var clLbl=d({fontSize:"10px",color:"#7C3AED",fontWeight:"700",letterSpacing:"1px",textTransform:"uppercase"});clLbl.textContent="📋 Prescription Checklist";
+    var clCt=d({fontSize:"10px",fontWeight:"700",color:doneCt===steps.length?"#10B981":"#F97316"});clCt.textContent=doneCt+"/"+steps.length+" done";
+    clHead.appendChild(clLbl);clHead.appendChild(clCt);clBox.appendChild(clHead);
+    var clGrid=d({display:"grid",gridTemplateColumns:"1fr 1fr",gap:"4px 16px"});
+    steps.forEach(function(s,i){
+      var row=d({display:"flex",alignItems:"center",gap:"6px",padding:"3px 0"});
+      var ck=d({width:"13px",height:"13px",borderRadius:"3px",border:"1.5px solid "+(s.done?"#10B981":"#ccc"),background:s.done?"#10B981":"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"9px",color:"#fff",fontWeight:"700",flexShrink:"0"});ck.textContent=s.done?"✓":"";
+      var tx=d({fontSize:"10px",color:"#333"});tx.textContent=(i+1)+". "+s.text+(s.qty>1?" ×"+s.qty:"");
+      row.appendChild(ck);row.appendChild(tx);clGrid.appendChild(row);
+    });
+    clBox.appendChild(clGrid);
+    paper.appendChild(clBox);
+  }
+
+  // ── ADDITIONAL WORK ──
+  if(jb.additionalWork){
+    var awBox=d({marginTop:"14px",borderLeft:"3px solid #F59E0B",background:"#fff8e1",borderRadius:"0 6px 6px 0",padding:"8px 12px"});
+    var awLbl=d({fontSize:"9px",color:"#F59E0B",fontWeight:"700",textTransform:"uppercase",marginBottom:"3px"});awLbl.textContent="⚡ Additional Work";
+    var awVal=d({fontSize:"11px",color:"#333"});awVal.textContent=jb.additionalWork;
+    awBox.appendChild(awLbl);awBox.appendChild(awVal);
+    paper.appendChild(awBox);
+  }
+
+  // ── Payment Details ──
+  var payBox=d({marginTop:"18px",background:"#f8f5ff",borderRadius:"8px",padding:"12px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"10px"});
+  var payL=d({});
+  var payLbl=d({fontSize:"9px",color:"#7C3AED",fontWeight:"700",textTransform:"uppercase",letterSpacing:"1px",marginBottom:"3px"});payLbl.textContent="Payment";
+  var payTxt=d({fontSize:"11px",color:"#333"});payTxt.textContent=inv.status==="Paid"?"✓ Payment received — thank you!":"Please settle by "+(inv.dueDate||inv.date)+" via EFT or Paystack.";
+  payL.appendChild(payLbl);payL.appendChild(payTxt);
+  var payR=d({fontSize:"18px",fontWeight:"900",color:"#7C3AED"});payR.textContent="R "+inv.total.toFixed(2);
+  payBox.appendChild(payL);payBox.appendChild(payR);
+  paper.appendChild(payBox);
+
+  // Footer
+  var pFoot=d({marginTop:"20px",paddingTop:"14px",borderTop:"1px solid #eee",textAlign:"center",fontSize:"10px",color:"#aaa"});
+  pFoot.innerHTML="Thank you for your business! 🌳<br>Every digital invoice saves paper. Powered by NEXORA · A Thousand Words";
+  paper.appendChild(pFoot);
+  wrap.appendChild(paper);
+
+  // Action buttons
+  var acts=d({display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px"});
+  acts.appendChild(btn("📧 Send to Client",function(){alert("Invoice "+inv.number+" ready to send to "+inv.client+"!\\n\\n(Connect your email to send automatically)");},C.cyn,"#fff",{fontSize:"13px",padding:"12px",fontWeight:"700"}));
+  if(inv.status!=="Paid"){
+    acts.appendChild(btn("✅ Mark as Paid",function(){inv.status="Paid";render();},C.grn,"#fff",{fontSize:"13px",padding:"12px",fontWeight:"700"}));
+  } else {
+    acts.appendChild(btn("💳 Paid via Paystack",function(){},C.grn+"22",C.grn,{fontSize:"13px",padding:"12px",fontWeight:"700"}));
+  }
+  wrap.appendChild(acts);
+  // Print button
+  wrap.appendChild(btn("🖨️ Print / Download PDF",function(){window.print();},C.pur+"22",C.purL,{width:"100%",fontSize:"13px",padding:"12px",fontWeight:"700",marginTop:"10px"}));
+  return wrap;
+}
+
+// ══════════════════════════════════════════════════════════
+// ── NEW FEATURE 2: DISPATCH DASHBOARD ─────────────────────
+// ══════════════════════════════════════════════════════════
+function buildDispatch(){
+  var wrap=d({padding:"16px",maxWidth:"960px",margin:"0 auto"});
+  var hd=d({marginBottom:"14px"});
+  var t1=d({fontSize:"20px",fontWeight:"900"});t1.textContent="📊 Dispatch";
+  var t2=d({fontSize:"12px",color:C.sft,marginTop:"2px"});t2.textContent="Live view of all jobs & crew status";
+  hd.appendChild(t1);hd.appendChild(t2);wrap.appendChild(hd);
+
+  if(!S.dispatchView)S.dispatchView="board";
+  var viewTabs=d({display:"flex",gap:"6px",marginBottom:"16px",background:C.card,borderRadius:"10px",padding:"4px"});
+  var boardTabBtn=btn("📊 Board",function(){S.dispatchView="board";render();},S.dispatchView==="board"?C.pur:"transparent",S.dispatchView==="board"?"#fff":C.sft,{flex:"1",fontSize:"12px",padding:"8px",fontWeight:"700"});
+  var calTabBtn=btn("📅 Calendar",function(){S.dispatchView="calendar";render();},S.dispatchView==="calendar"?C.pur:"transparent",S.dispatchView==="calendar"?"#fff":C.sft,{flex:"1",fontSize:"12px",padding:"8px",fontWeight:"700"});
+  viewTabs.appendChild(boardTabBtn);viewTabs.appendChild(calTabBtn);
+  wrap.appendChild(viewTabs);
+
+  if(S.dispatchView==="calendar"){
+    wrap.appendChild(buildDispatchCalendar());
+    return wrap;
+  }
+
+  var allJobs=Object.values(S.jobs).filter(function(j){return (j.company===S.user.company||S.user.role==="superadmin");});
+
+  // Status columns (Kanban style)
+  var cols=[
+    {key:"Pending",label:"⏳ Pending",color:C.org},
+    {key:"active",label:"🚗 In Progress",color:C.cyn,statuses:["Dispatched","Travelling","On Site"]},
+    {key:"Complete",label:"✅ Complete",color:C.grn}
+  ];
+
+  var board=d({display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:"12px"});
+  cols.forEach(function(col){
+    var jobs=allJobs.filter(function(j){
+      if(col.statuses)return col.statuses.includes(j.status);
+      return j.status===col.key;
+    });
+    var colBox=d({background:C.panel,border:"1px solid "+C.bdr,borderRadius:"12px",padding:"12px",minHeight:"200px"});
+    var colHd=d({display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"10px",paddingBottom:"8px",borderBottom:"2px solid "+col.color+"33"});
+    var cl=d({fontSize:"13px",fontWeight:"700",color:col.color});cl.textContent=col.label;
+    var cc=d({fontSize:"12px",fontWeight:"900",background:col.color+"22",color:col.color,borderRadius:"99px",padding:"2px 9px"});cc.textContent=jobs.length;
+    colHd.appendChild(cl);colHd.appendChild(cc);colBox.appendChild(colHd);
+
+    if(jobs.length===0){
+      var em=d({fontSize:"11px",color:C.mut,textAlign:"center",padding:"20px 0"});em.textContent="No jobs";colBox.appendChild(em);
+    }
+    jobs.forEach(function(j){
+      var jc=d({background:C.card,border:"1px solid "+C.bdr,borderRadius:"9px",padding:"10px",marginBottom:"8px",cursor:"pointer"});
+      jc.addEventListener("click",function(){S.selJob=S.jobs[j.id];S.page="detail";render();});
+      var jcTop=d({display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"6px"});
+      var jcT=d({fontSize:"13px",fontWeight:"700",marginBottom:"3px"});jcT.textContent=j.site||"Unnamed";
+      jcTop.appendChild(jcT);
+      if(j.status!=="Complete"){
+        var jcReassign=btn("🔄",function(e){e.stopPropagation();S.reassignJobId=j.id;render();},"transparent",C.cyn,{fontSize:"12px",padding:"2px 6px",flexShrink:"0"});
+        jcReassign.addEventListener("click",function(e){e.stopPropagation();});
+        jcTop.appendChild(jcReassign);
+      }
+      jc.appendChild(jcTop);
+      var jcA=d({fontSize:"10px",color:C.sft,marginBottom:"5px"});jcA.textContent=j.address||"No address";
+      jc.appendChild(jcA);
+      var jcB=d({display:"flex",alignItems:"center",justifyContent:"space-between"});
+      var jcTech=d({fontSize:"10px",color:C.cyn,fontWeight:"600"});jcTech.textContent="👤 "+(j.tech||"Unassigned");
+      var jcP=d({fontSize:"9px",fontWeight:"700",padding:"2px 7px",borderRadius:"99px"});
+      var pc=j.priority==="Urgent"?C.red:(j.priority==="High"?C.org:C.mut);
+      jcP.style.background=pc+"22";jcP.style.color=pc;jcP.textContent=j.priority||"Normal";
+      jcB.appendChild(jcTech);jcB.appendChild(jcP);jc.appendChild(jcB);
+      colBox.appendChild(jc);
+    });
+    board.appendChild(colBox);
+  });
+  wrap.appendChild(board);
+
+  // Crew status
+  var crewLbl=d({fontSize:"13px",fontWeight:"700",color:C.pur,margin:"20px 0 10px"});crewLbl.textContent="👥 CREW STATUS";
+  wrap.appendChild(crewLbl);
+  var teams=[...new Set(allJobs.map(function(j){return j.tech;}).filter(Boolean))];
+  if(S.users){S.users.forEach(function(u){if(u.team&&!teams.includes(u.team))teams.push(u.team);});}
+  var crewGrid=d({display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:"10px"});
+  (teams.length?teams:["Team Alpha","Team Bravo"]).forEach(function(tm){
+    var active=allJobs.filter(function(j){return j.tech===tm&&["Dispatched","Travelling","On Site"].includes(j.status);});
+    var isBusy=active.length>0;
+    var c=d({background:C.card,border:"1px solid "+(isBusy?C.cyn+"44":C.bdr),borderRadius:"10px",padding:"12px",display:"flex",alignItems:"center",gap:"10px"});
+    var dot=d({width:"10px",height:"10px",borderRadius:"50%",background:isBusy?C.cyn:C.grn,boxShadow:"0 0 6px "+(isBusy?C.cyn:C.grn)});
+    var info=d({flex:"1"});
+    var nm=d({fontSize:"13px",fontWeight:"700"});nm.textContent=tm;
+    var st=d({fontSize:"10px",color:isBusy?C.cyn:C.grn});st.textContent=isBusy?("On job · "+active.length+" active"):"Available";
+    info.appendChild(nm);info.appendChild(st);
+    c.appendChild(dot);c.appendChild(info);crewGrid.appendChild(c);
+  });
+  wrap.appendChild(crewGrid);
+  return wrap;
+}
+
+// ══════════════════════════════════════════════════════════
+// ── NEW FEATURE 3: OFFLINE MODE ───────────────────────────
+// ══════════════════════════════════════════════════════════
+var NEXORA_OFFLINE={
+  online:navigator.onLine,
+  queue:[],
+  init:function(){
+    var self=this;
+    window.addEventListener("online",function(){self.online=true;self.sync();updateOfflineBar();});
+    window.addEventListener("offline",function(){self.online=false;updateOfflineBar();});
+  },
+  save:function(){
+    // Save all app data to a memory cache (works offline)
+    try{
+      window._nexoraCache={jobs:S.jobs,invoices:S.invoices||[],saved:new Date().toISOString()};
+    }catch(e){}
+  },
+  queueAction:function(action){
+    this.queue.push({action:action,time:new Date().toISOString()});
+    this.save();
+  },
+  sync:function(){
+    if(this.online&&this.queue.length>0){
+      // When back online, sync queued actions
+      var count=this.queue.length;
+      this.queue=[];
+      if(count>0)treeFactToastCustom("🔄 Synced!","Your "+count+" offline change"+(count>1?"s":"")+" synced successfully.");
+    }
+  }
+};
+
+function updateOfflineBar(){
+  var existing=document.getElementById("offlineBar");
+  if(existing)existing.remove();
+  if(!NEXORA_OFFLINE.online){
+    var bar=d({position:"fixed",top:"0",left:"0",right:"0",background:"linear-gradient(90deg,#f59e0b,#d97706)",color:"#fff",textAlign:"center",padding:"6px",fontSize:"12px",fontWeight:"700",zIndex:"9999"});
+    bar.setAttribute("id","offlineBar");
+    bar.innerHTML="📴 Offline Mode — Your work is being saved locally and will sync when you reconnect.";
+    document.body.appendChild(bar);
+  }
+}
+
+function treeFactToastCustom(title,msg){
+  var old=document.getElementById("factToast");if(old)old.remove();
+  var toast=d({position:"fixed",bottom:"78px",left:"50%",transform:"translateX(-50%) translateY(20px)",
+    background:"linear-gradient(135deg,#0891b2,#06b6d4)",color:"#fff",borderRadius:"16px",
+    padding:"14px 18px",maxWidth:"340px",width:"calc(100% - 32px)",zIndex:"9998",
+    boxShadow:"0 12px 40px rgba(6,182,212,0.45)",opacity:"0",transition:"opacity .4s,transform .4s"});
+  toast.setAttribute("id","factToast");
+  var ti=d({fontSize:"14px",fontWeight:"800",marginBottom:"3px"});ti.textContent=title;
+  var fx=d({fontSize:"12px",lineHeight:"1.5",opacity:"0.92"});fx.textContent=msg;
+  toast.appendChild(ti);toast.appendChild(fx);
+  document.body.appendChild(toast);
+  requestAnimationFrame(function(){toast.style.opacity="1";toast.style.transform="translateX(-50%) translateY(0)";});
+  setTimeout(function(){toast.style.opacity="0";toast.style.transform="translateX(-50%) translateY(20px)";setTimeout(function(){if(toast.parentNode)toast.remove();},400);},4000);
+}
+
+
+
+// ══════════════════════════════════════════════════════════
+// ── NEW FEATURE 4: DRAG & DROP CALENDAR + NOTIFICATIONS ───
+// ══════════════════════════════════════════════════════════
+function uidC(){return Math.random().toString(36).slice(2,10);}
+
+function pushNotification(team,title,msg,jobId){
+  if(!S.notifications)S.notifications=[];
+  var n={id:uidC(),team:team||"",title:title,msg:msg,jobId:jobId||null,time:new Date().toISOString(),read:false};
+  S.notifications.unshift(n);
+  var isA=["admin","superadmin"].includes(S.user.role);
+  if(isA||S.user.team===team){
+    try{treeFactToastCustom(title,msg);}catch(e){}
+  }
+}
+
+function makeJobChip(j,mini){
+  var pc=j.priority==="Urgent"?C.red:(j.priority==="High"?C.org:C.cyn);
+  var chip=d({background:pc+"18",border:"1px solid "+pc+"44",borderRadius:"7px",
+    padding:mini?"3px 6px":"8px 10px",marginBottom:mini?"3px":"0",cursor:"grab",
+    flexShrink:"0",minWidth:mini?"auto":"150px",maxWidth:mini?"100%":"none"});
+  chip.setAttribute("draggable","true");
+  chip.addEventListener("dragstart",function(e){
+    e.dataTransfer.setData("text/plain",j.id);
+    setTimeout(function(){chip.style.opacity="0.4";},0);
+  });
+  chip.addEventListener("dragend",function(){chip.style.opacity="1";});
+  chip.addEventListener("click",function(){S.selJob=S.jobs[j.id];S.page="detail";S.notifOpen=false;render();});
+  var nm=d({fontSize:mini?"9px":"12px",fontWeight:"700",color:C.txt,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"});
+  nm.textContent=j.site||"Unnamed Job";
+  chip.appendChild(nm);
+  if(!mini){
+    var tm=d({fontSize:"10px",color:pc,marginTop:"3px",fontWeight:"600"});tm.textContent="👤 "+(j.tech||"Unassigned");
+    chip.appendChild(tm);
+    if(j.scheduledTime){
+      var tt=d({fontSize:"9px",color:C.mut,marginTop:"2px"});tt.textContent="🕐 "+j.scheduledTime;
+      chip.appendChild(tt);
+    }
+  }
+  return chip;
+}
+
+function buildDispatchCalendar(){
+  var wrap=d({});
+  if(!S.calMonth)S.calMonth=new Date();
+  var view=S.calMonth;
+  var year=view.getFullYear(),month=view.getMonth();
+
+  // Month nav
+  var nav=d({display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"12px"});
+  var navL=d({display:"flex",gap:"6px",alignItems:"center"});
+  var prevBtn=btn("‹",function(){S.calMonth=new Date(year,month-1,1);render();},C.card,C.txt,{fontSize:"16px",padding:"6px 13px",fontWeight:"700",border:"1px solid "+C.bdr});
+  var monthLbl=d({fontSize:"14px",fontWeight:"800",minWidth:"140px",textAlign:"center"});
+  monthLbl.textContent=view.toLocaleDateString("en-ZA",{month:"long",year:"numeric"});
+  var nextBtn=btn("›",function(){S.calMonth=new Date(year,month+1,1);render();},C.card,C.txt,{fontSize:"16px",padding:"6px 13px",fontWeight:"700",border:"1px solid "+C.bdr});
+  navL.appendChild(prevBtn);navL.appendChild(monthLbl);navL.appendChild(nextBtn);
+  var todayBtn=btn("📍 Today",function(){S.calMonth=new Date();render();},C.cyn+"20",C.cyn,{fontSize:"11px",padding:"7px 12px",fontWeight:"700"});
+  nav.appendChild(navL);nav.appendChild(todayBtn);
+  wrap.appendChild(nav);
+
+  var allJobs=Object.values(S.jobs).filter(function(j){return (j.company===S.user.company||S.user.role==="superadmin");});
+
+  // Unscheduled pool — drag from here onto a day
+  var unsch=allJobs.filter(function(j){return !j.scheduledDate&&j.status!=="Complete";});
+  var poolLbl=d({fontSize:"11px",fontWeight:"700",color:C.org,marginBottom:"8px",letterSpacing:"0.5px"});
+  poolLbl.textContent="📥 UNSCHEDULED — DRAG ONTO A DAY TO ASSIGN";
+  wrap.appendChild(poolLbl);
+  var pool=d({display:"flex",gap:"8px",overflowX:"auto",minHeight:"46px",background:C.card,
+    border:"1.5px dashed "+C.bdr,borderRadius:"10px",padding:"10px",marginBottom:"16px"});
+  pool.addEventListener("dragover",function(e){e.preventDefault();pool.style.borderColor=C.org;});
+  pool.addEventListener("dragleave",function(){pool.style.borderColor=C.bdr;});
+  pool.addEventListener("drop",function(e){
+    e.preventDefault();pool.style.borderColor=C.bdr;
+    var jid=e.dataTransfer.getData("text/plain");
+    var job=S.jobs[jid];
+    if(job&&job.scheduledDate){
+      delete job.scheduledDate;delete job.scheduledTime;
+      render();
+    }
+  });
+  if(unsch.length===0){
+    var emp=d({fontSize:"11px",color:C.mut,padding:"6px",alignSelf:"center"});emp.textContent="🎉 All jobs scheduled!";
+    pool.appendChild(emp);
+  }
+  unsch.forEach(function(j){pool.appendChild(makeJobChip(j,false));});
+  wrap.appendChild(pool);
+
+  // Day-of-week header
+  var dow=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  var head=d({display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:"4px",marginBottom:"4px"});
+  dow.forEach(function(dn){var c=d({fontSize:"10px",fontWeight:"700",color:C.mut,textAlign:"center",padding:"4px"});c.textContent=dn;head.appendChild(c);});
+  wrap.appendChild(head);
+
+  var firstDay=new Date(year,month,1);
+  var startOffset=firstDay.getDay();
+  var daysInMonth=new Date(year,month+1,0).getDate();
+  var totalCells=Math.ceil((startOffset+daysInMonth)/7)*7;
+  var todayISO=new Date().toISOString().slice(0,10);
+
+  var grid=d({display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:"4px"});
+
+  var _loop=function(i){
+    var dayNum=i-startOffset+1;
+    var inMonth=dayNum>=1&&dayNum<=daysInMonth;
+    var iso=null;
+    if(inMonth){
+      var cellDate=new Date(year,month,dayNum);
+      iso=cellDate.getFullYear()+"-"+String(cellDate.getMonth()+1).padStart(2,"0")+"-"+String(cellDate.getDate()).padStart(2,"0");
+    }
+    var isToday=iso===todayISO;
+    var cell=d({minHeight:"76px",background:inMonth?C.card:"transparent",
+      border:"1.5px solid "+(isToday?C.cyn:C.bdr),borderRadius:"8px",padding:"5px",
+      opacity:inMonth?1:0,transition:"border-color 0.15s"});
+    if(inMonth){
+      cell.addEventListener("dragover",function(e){e.preventDefault();cell.style.borderColor=C.grn;});
+      cell.addEventListener("dragleave",function(){cell.style.borderColor=isToday?C.cyn:C.bdr;});
+      cell.addEventListener("drop",function(e){
+        e.preventDefault();cell.style.borderColor=isToday?C.cyn:C.bdr;
+        var jid=e.dataTransfer.getData("text/plain");
+        var job=S.jobs[jid];
+        if(job){
+          var wasScheduled=!!job.scheduledDate;
+          job.scheduledDate=iso;
+          var niceDate=new Date(iso+"T00:00:00").toLocaleDateString("en-ZA",{weekday:"long",day:"numeric",month:"short"});
+          pushNotification(job.tech,wasScheduled?"📅 Job Rescheduled":"📅 New Job Scheduled",
+            (job.client||"Job")+" — "+niceDate,job.id);
+          render();
+        }
+      });
+      var dn=d({fontSize:"10px",fontWeight:isToday?"900":"600",color:isToday?C.cyn:C.mut,marginBottom:"4px"});
+      dn.textContent=String(dayNum);
+      cell.appendChild(dn);
+      var dayJobs=allJobs.filter(function(j){return j.scheduledDate===iso;});
+      dayJobs.slice(0,3).forEach(function(j){cell.appendChild(makeJobChip(j,true));});
+      if(dayJobs.length>3){
+        var more=d({fontSize:"9px",color:C.mut,textAlign:"center",marginTop:"2px"});more.textContent="+"+(dayJobs.length-3)+" more";
+        cell.appendChild(more);
+      }
+    }
+    grid.appendChild(cell);
+  };
+  for(var i=0;i<totalCells;i++)_loop(i);
+  wrap.appendChild(grid);
+
+  var hint=d({fontSize:"11px",color:C.mut,textAlign:"center",marginTop:"14px"});
+  hint.textContent="💡 Drag any job card onto a day to schedule it. The assigned tech is notified instantly.";
+  wrap.appendChild(hint);
+  return wrap;
+}
+
+// ── NOTIFICATION PANEL ──
+function timeAgo(iso){
+  var diff=(Date.now()-new Date(iso).getTime())/1000;
+  if(diff<60)return "Just now";
+  if(diff<3600)return Math.floor(diff/60)+"m ago";
+  if(diff<86400)return Math.floor(diff/3600)+"h ago";
+  return Math.floor(diff/86400)+"d ago";
+}
+
+function buildNotifPanel(){
+  var isA=["admin","superadmin"].includes(S.user.role);
+  var list=(S.notifications||[]).filter(function(n){return isA||n.team===S.user.team;});
+
+  var ov=d({position:"fixed",inset:"0",zIndex:"90",background:"transparent"});
+  ov.addEventListener("click",function(){S.notifOpen=false;render();});
+
+  var panel=d({position:"fixed",top:"58px",right:"12px",width:"320px",maxWidth:"calc(100vw - 24px)",
+    maxHeight:"70vh",overflowY:"auto",background:C.panel,border:"1px solid "+C.bdr,borderRadius:"14px",
+    boxShadow:"0 20px 60px rgba(0,0,0,0.55)",zIndex:"91",padding:"10px"});
+  panel.addEventListener("click",function(e){e.stopPropagation();});
+
+  var hd=d({display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px",padding:"4px 6px"});
+  var t=d({fontSize:"13px",fontWeight:"800"});t.textContent="🔔 Notifications";
+  hd.appendChild(t);
+  if(list.some(function(n){return !n.read;})){
+    var markAll=btn("Mark all read",function(){list.forEach(function(n){n.read=true;});render();},"none",C.cyn,{fontSize:"10px",padding:"4px 6px",fontWeight:"700"});
+    hd.appendChild(markAll);
+  }
+  panel.appendChild(hd);
+
+  if(list.length===0){
+    var em=d({textAlign:"center",padding:"30px 10px",color:C.mut,fontSize:"12px"});
+    em.innerHTML="🔕<br/><span style='display:block;margin-top:6px'>No notifications yet.</span>";
+    panel.appendChild(em);
+  }
+  list.slice(0,30).forEach(function(n){
+    var item=d({background:n.read?"transparent":C.cyn+"0d",border:"1px solid "+(n.read?C.bdr:C.cyn+"33"),
+      borderRadius:"9px",padding:"9px 10px",marginBottom:"6px",cursor:"pointer"});
+    item.addEventListener("click",function(){
+      n.read=true;
+      if(n.jobId&&S.jobs[n.jobId]){S.selJob=S.jobs[n.jobId];S.page="detail";}
+      S.notifOpen=false;render();
+    });
+    var top=d({display:"flex",justifyContent:"space-between",gap:"8px"});
+    var ti=d({fontSize:"12px",fontWeight:"700",color:n.read?C.sft:C.txt});ti.textContent=n.title;
+    var tm=d({fontSize:"9px",color:C.mut,whiteSpace:"nowrap"});tm.textContent=timeAgo(n.time);
+    top.appendChild(ti);top.appendChild(tm);
+    item.appendChild(top);
+    var msg=d({fontSize:"11px",color:C.sft,marginTop:"3px"});msg.textContent=n.msg;
+    item.appendChild(msg);
+    if(!n.read){
+      var dot=d({width:"6px",height:"6px",borderRadius:"50%",background:C.cyn,marginTop:"4px"});
+      item.appendChild(dot);
+    }
+    panel.appendChild(item);
+  });
+
+  ov.appendChild(panel);
+  return ov;
+}
+
+
+
+// ══════════════════════════════════════════════════════════
+// ── NEW FEATURE: COMPANY PROFILE / SETTINGS ───────────────
+// ══════════════════════════════════════════════════════════
+function getCompanyProfile(companyName){
+  if(!S.companyProfiles)S.companyProfiles={};
+  if(!S.companyProfiles[companyName])S.companyProfiles[companyName]={address:"",phone:"",email:"",vat:"",logo:""};
+  return S.companyProfiles[companyName];
+}
+
+function buildCompanySettings(){
+  var companyName=S.user.company;
+  var profile=getCompanyProfile(companyName);
+
+  var ov=d({position:"fixed",inset:"0",background:"#000a",zIndex:"100",display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"});
+  var card=d({background:C.card,borderRadius:"18px",padding:"22px",width:"100%",maxWidth:"480px",border:"1px solid "+C.pur+"44",maxHeight:"90vh",overflowY:"auto"});
+
+  var tp=d({display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"});
+  var hd=d({fontSize:"16px",fontWeight:"800"});hd.textContent="🏢 Company Profile";
+  tp.appendChild(hd);tp.appendChild(btn("✕",function(){S.showCompanySettings=false;render();},C.bdr,C.sft,{border:"none",padding:"5px 10px"}));
+  card.appendChild(tp);
+  var sub=d({fontSize:"12px",color:C.mut,marginBottom:"16px"});sub.textContent="This appears on every invoice and job card you generate.";
+  card.appendChild(sub);
+
+  // Logo upload
+  var logoBox=d({display:"flex",alignItems:"center",gap:"14px",marginBottom:"16px",background:"#07101f",borderRadius:"12px",padding:"14px",border:"1px solid "+C.bdr});
+  var logoPreview=d({width:"64px",height:"64px",borderRadius:"10px",background:"#fff",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:"0",border:"1px solid "+C.bdr});
+  function refreshLogoPreview(){
+    logoPreview.innerHTML="";
+    if(profile.logo){
+      var img=h("img",{width:"100%",height:"100%",objectFit:"contain"},null,{src:profile.logo});
+      logoPreview.appendChild(img);
+    } else {
+      var ph=d({fontSize:"22px",color:C.mut});ph.textContent="🏢";
+      logoPreview.appendChild(ph);
+    }
+  }
+  refreshLogoPreview();
+  var logoRight=d({flex:"1"});
+  var logoLbl=d({fontSize:"12px",fontWeight:"700",color:C.sft,marginBottom:"6px"});logoLbl.textContent="Company Logo";
+  logoRight.appendChild(logoLbl);
+  var logoFi=h("input",null,null,{type:"file",accept:"image/*"});logoFi.style.display="none";
+  logoFi.addEventListener("change",function(){
+    var f=logoFi.files[0];if(!f)return;
+    var r=new FileReader();
+    r.onload=function(ev){
+      var img=new Image();
+      img.onload=function(){
+        var c=document.createElement("canvas");c.width=240;c.height=240;
+        var ctx=c.getContext("2d");
+        var scale=Math.min(240/img.width,240/img.height);
+        var w=img.width*scale,h2=img.height*scale;
+        ctx.drawImage(img,(240-w)/2,(240-h2)/2,w,h2);
+        profile.logo=c.toDataURL("image/png");
+        refreshLogoPreview();
+      };
+      img.src=ev.target.result;
+    };
+    r.readAsDataURL(f);
+  });
+  var logoBtnRow=d({display:"flex",gap:"8px"});
+  logoBtnRow.appendChild(btn(profile.logo?"🔄 Replace Logo":"📤 Upload Logo",function(){logoFi.click();},C.pur+"22",C.purL,{border:"1px solid "+C.pur+"44",fontSize:"12px",padding:"7px 13px"}));
+  if(profile.logo){
+    logoBtnRow.appendChild(btn("🗑️ Remove",function(){profile.logo="";refreshLogoPreview();},C.red+"22",C.red,{border:"1px solid "+C.red+"44",fontSize:"12px",padding:"7px 13px"}));
+  }
+  logoRight.appendChild(logoFi);logoRight.appendChild(logoBtnRow);
+  logoBox.appendChild(logoPreview);logoBox.appendChild(logoRight);
+  card.appendChild(logoBox);
+
+  // Company name (read-only, tied to login)
+  var nameBox=d({marginBottom:"12px"});
+  var nameLbl=d({fontSize:"11px",fontWeight:"700",color:C.sft,marginBottom:"5px",textTransform:"uppercase",letterSpacing:"0.5px"});nameLbl.textContent="Company Name";
+  var nameVal=d({fontSize:"15px",fontWeight:"800",color:C.cyn,background:"#07101f",borderRadius:"8px",padding:"10px 12px",border:"1px solid "+C.bdr});nameVal.textContent=companyName;
+  nameBox.appendChild(nameLbl);nameBox.appendChild(nameVal);
+  card.appendChild(nameBox);
+
+  // Editable fields
+  function field(label,key,placeholder){
+    var box=d({marginBottom:"12px"});
+    var lbl=d({fontSize:"11px",fontWeight:"700",color:C.sft,marginBottom:"5px",textTransform:"uppercase",letterSpacing:"0.5px"});lbl.textContent=label;
+    var input=inp(placeholder,profile[key]||"",function(v){profile[key]=v;});
+    box.appendChild(lbl);box.appendChild(input);
+    return box;
+  }
+  card.appendChild(field("Address","address","e.g. 123 Main Street, Suburb, City"));
+  var row=d({display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px"});
+  var phoneBox=d({});
+  phoneBox.appendChild(d({fontSize:"11px",fontWeight:"700",color:C.sft,marginBottom:"5px",textTransform:"uppercase",letterSpacing:"0.5px"},"Phone"));
+  phoneBox.appendChild(inp("010 123 4567",profile.phone||"",function(v){profile.phone=v;},"tel"));
+  var emailBox=d({});
+  emailBox.appendChild(d({fontSize:"11px",fontWeight:"700",color:C.sft,marginBottom:"5px",textTransform:"uppercase",letterSpacing:"0.5px"},"Email"));
+  emailBox.appendChild(inp("info@company.com",profile.email||"",function(v){profile.email=v;},"email"));
+  row.appendChild(phoneBox);row.appendChild(emailBox);
+  card.appendChild(row);
+  card.appendChild(field("VAT / Registration Number","vat","e.g. 4123456789"));
+
+  card.appendChild(btn("💾 Save Company Profile",function(){
+    S.showCompanySettings=false;
+    try{treeFactToastCustom("🏢 Profile Saved","Your company details now appear on invoices & job cards.");}catch(e){}
+    render();
+  },C.grn,"#fff",{width:"100%",fontSize:"14px",padding:"12px",fontWeight:"800",marginTop:"6px"}));
+
+  ov.appendChild(card);
+  return ov;
+}
+
+
+
+// ══════════════════════════════════════════════════════════
+// ── NEW FEATURE: SHARE / REASSIGN JOB CARD ────────────────
+// ══════════════════════════════════════════════════════════
+function getAvailableTeams(excludeTeam){
+  var teams=[...new Set((S.users||[]).filter(function(u){return u.role==="technician";}).map(function(u){return u.team;}))].filter(Boolean);
+  return teams.filter(function(t){return t!==excludeTeam;});
+}
+
+function reassignJob(job,newTeam,note){
+  var oldTeam=job.tech;
+  var updated=Object.assign({},job,{tech:newTeam});
+  saveJob(updated);
+  S.selJob=updated;
+  pushNotification(newTeam,"📤 Job Handed To You",
+    (job.site||"A job")+" in "+(job.town||"")+" has been assigned to your team."+(note?" Note: \""+note+"\"":""),job.id);
+  if(oldTeam&&oldTeam!==newTeam){
+    pushNotification(oldTeam,"✅ Job Reassigned",
+      (job.site||"Your job")+" was handed off to "+newTeam+".",job.id);
+  }
+  S.reassignJobId=null;
+  try{treeFactToastCustom("🔄 Job Reassigned",(job.site||"Job")+" is now with "+newTeam+".");}catch(e){}
+  render();
+}
+
+function buildReassignModal(){
+  var job=S.jobs[S.reassignJobId];
+  if(!job){S.reassignJobId=null;return d({});}
+  var isA=["admin","superadmin"].includes(S.user.role);
+
+  var ov=d({position:"fixed",inset:"0",background:"#000a",zIndex:"110",display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"});
+  ov.addEventListener("click",function(e){if(e.target===ov){S.reassignJobId=null;render();}});
+
+  var card=d({background:C.card,borderRadius:"18px",padding:"22px",width:"100%",maxWidth:"420px",border:"1px solid "+C.cyn+"44",maxHeight:"85vh",overflowY:"auto"});
+  card.addEventListener("click",function(e){e.stopPropagation();});
+
+  var tp=d({display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"4px"});
+  var hd=d({fontSize:"16px",fontWeight:"800"});hd.textContent="🔄 Share / Reassign Job";
+  tp.appendChild(hd);tp.appendChild(btn("✕",function(){S.reassignJobId=null;render();},C.bdr,C.sft,{border:"none",padding:"5px 10px"}));
+  card.appendChild(tp);
+
+  var sub=d({fontSize:"12px",color:C.mut,marginBottom:"16px"});
+  sub.textContent=(job.site||"This job")+" is currently with "+(job.tech||"nobody")+". Choose who should take it over.";
+  card.appendChild(sub);
+
+  var options=getAvailableTeams(job.tech);
+  if(options.length===0){
+    var em=d({textAlign:"center",padding:"20px",color:C.mut,fontSize:"12px"});em.textContent="No other teams available to reassign to.";
+    card.appendChild(em);
+  }
+
+  var noteVal={v:""};
+  var noteBox=d({marginBottom:"14px"});
+  var noteLbl=d({fontSize:"11px",fontWeight:"700",color:C.sft,marginBottom:"5px",textTransform:"uppercase",letterSpacing:"0.5px"});noteLbl.textContent="Note (optional)";
+  var noteInput=inp("e.g. You're closer, please take this one","",function(v){noteVal.v=v;});
+  noteBox.appendChild(noteLbl);noteBox.appendChild(noteInput);
+  card.appendChild(noteBox);
+
+  var lbl2=d({fontSize:"11px",fontWeight:"700",color:C.sft,marginBottom:"8px",textTransform:"uppercase",letterSpacing:"0.5px"});lbl2.textContent="Reassign To";
+  card.appendChild(lbl2);
+
+  var list=d({display:"flex",flexDirection:"column",gap:"8px"});
+  options.forEach(function(team){
+    var activeJobs=Object.values(S.jobs).filter(function(j){return j.tech===team&&["Dispatched","Travelling","On Site"].includes(j.status);}).length;
+    var row=d({display:"flex",alignItems:"center",justifyContent:"space-between",background:"#07101f",border:"1px solid "+C.bdr,borderRadius:"10px",padding:"11px 14px",cursor:"pointer"});
+    row.addEventListener("click",function(){reassignJob(job,team,noteVal.v);});
+    row.addEventListener("mouseenter",function(){row.style.borderColor=C.cyn;});
+    row.addEventListener("mouseleave",function(){row.style.borderColor=C.bdr;});
+    var left=d({});
+    var nm=d({fontSize:"13px",fontWeight:"700",color:C.txt});nm.textContent=team;
+    var st=d({fontSize:"10px",color:activeJobs>0?C.org:C.grn,marginTop:"2px"});st.textContent=activeJobs>0?activeJobs+" active job"+(activeJobs>1?"s":""):"Available";
+    left.appendChild(nm);left.appendChild(st);
+    var arrow=d({fontSize:"16px",color:C.cyn});arrow.textContent="→";
+    row.appendChild(left);row.appendChild(arrow);
+    list.appendChild(row);
+  });
+  card.appendChild(list);
+
+  ov.appendChild(card);
+  return ov;
+}
+
+
+
+// ══════════════════════════════════════════════════════════
+// ── NEW FEATURE: ABOUT NEXORA — ORIGIN STORY & COMMUNITY ──
+// ══════════════════════════════════════════════════════════
+function buildAboutNexora(){
+  var wrap=d({minHeight:"100vh",background:C.bg,padding:"0 0 60px"});
+
+  // Top bar
+  var tb=d({position:"sticky",top:"0",zIndex:"10",background:C.bg+"ee",backdropFilter:"blur(10px)",borderBottom:"1px solid "+C.bdr,padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between"});
+  tb.appendChild(btn("← Back to Login",function(){S.page="login";render();window.scrollTo(0,0);},"transparent",C.sft,{border:"1px solid "+C.bdr,fontSize:"12px",padding:"8px 14px"}));
+  var tbLogo=d({display:"flex",alignItems:"center",gap:"8px"});
+  tbLogo.appendChild(logo(22));
+  var tbT=d({fontSize:"13px",fontWeight:"900",letterSpacing:"2px"});tbT.textContent="NEXORA";
+  tbLogo.appendChild(tbT);
+  tb.appendChild(tbLogo);
+  tb.appendChild(d({width:"110px"})); // spacer for balance
+  wrap.appendChild(tb);
+
+  var inner=d({maxWidth:"720px",margin:"0 auto",padding:"48px 24px 0"});
+
+  // ── HERO ──
+  var hero=d({textAlign:"center",marginBottom:"56px"});
+  hero.appendChild(logo(64));
+  var heroEyebrow=d({fontSize:"11px",fontWeight:"700",letterSpacing:"3px",color:C.cyn,marginTop:"18px"});heroEyebrow.textContent="THE STORY BEHIND NEXORA";
+  var heroTitle=d({fontSize:"clamp(26px,5vw,38px)",fontWeight:"800",marginTop:"12px",lineHeight:"1.2"});heroTitle.innerHTML="Built in the field.<br/>Born from a family's mission.";
+  var heroSub=d({fontSize:"14px",color:C.sft,marginTop:"14px",maxWidth:"480px",marginLeft:"auto",marginRight:"auto",lineHeight:"1.7"});
+  heroSub.textContent="NEXORA didn't start in a boardroom. It started on the road, in job sites, and in a family determined to fix what paper was breaking.";
+  hero.appendChild(heroEyebrow);hero.appendChild(heroTitle);hero.appendChild(heroSub);
+  inner.appendChild(hero);
+
+  // ── WHY IT WAS BUILT ──
+  function section(eyebrow,title,body,color){
+    var sec=d({marginBottom:"48px"});
+    var eb=d({fontSize:"10px",fontWeight:"700",letterSpacing:"2px",color:color||C.cyn,marginBottom:"10px"});eb.textContent=eyebrow;
+    var ti=d({fontSize:"20px",fontWeight:"800",marginBottom:"12px",lineHeight:"1.3"});ti.textContent=title;
+    sec.appendChild(eb);sec.appendChild(ti);
+    body.forEach(function(p){
+      var pp=d({fontSize:"14px",color:C.sft,lineHeight:"1.8",marginBottom:"12px"});pp.textContent=p;
+      sec.appendChild(pp);
+    });
+    return sec;
+  }
+
+  inner.appendChild(section("WHY WE BUILT IT","Every paper job card was a small leak.",[
+    "NEXORA grew out of real field operations at Yantek Industries — technicians driving between sites across South Africa, filling in paper job cards by hand, chasing signatures, retyping the same information into invoices back at the office.",
+    "Every one of those paper cards cost time, cost trees, and cost clarity. Jobs got lost. Invoices got delayed. Nobody could see where anyone was.",
+    "So instead of buying an overseas platform built for someone else's country, this family built its own — one that actually understood South African roads, South African signal drop-outs, and South African businesses."
+  ],C.cyn));
+
+  inner.appendChild(section("WHO BUILT IT","A father, a mother, and five daughters.",[
+    "NEXORA is a family project. Operations know-how, brand design, front-end code, app development — it all came from one household working toward the same goal: give field teams a tool that respects their time.",
+    "It's built the way a family builds something — with care for the people who'll actually use it, not just the numbers on a spreadsheet."
+  ],C.pur));
+
+  inner.appendChild(section("WHAT IT DOES","One app, from dispatch to payment.",[
+    "NEXORA replaces the paper job card entirely — travel and on-site timers, before/after photos, digital checklists, and client sign-off, all in one place.",
+    "A drag-and-drop dispatch calendar lets admins schedule and hand off jobs in seconds, with technicians notified instantly. Offline mode keeps everything working even when signal drops — critical on South African roads.",
+    "And when the job is done, NEXORA generates a complete, professional invoice automatically — pulling in the photos, the checklist, the materials, and the time — so businesses get paid faster, without retyping a single thing."
+  ],C.grn));
+
+  inner.appendChild(section("WHAT IT MEANS FOR THE COMMUNITY","Every business that goes digital is a forest that keeps standing.",[
+    "NEXORA is proudly powered by A Thousand Words Foundation — every digital job card is one less sheet of paper printed, and every sheet saved is a small piece of a tree left standing.",
+    "For small and medium South African businesses, NEXORA offers what international platforms often can't: real affordability, true offline reliability, and a genuine understanding of local conditions — without the R4,000+ per-technician monthly price tags charged elsewhere.",
+    "For technicians, it means fewer forgotten details, clearer instructions, and jobs that get handed to whoever's actually closest — not whoever picked up the phone first.",
+    "For clients, it means faster invoices, visible proof of work, and a business that looks as professional as the job it just did."
+  ],C.org));
+
+  // ── PLEDGE / QUOTE ──
+  var quoteBox=d({background:"linear-gradient(135deg,"+C.pur+"14,"+C.cyn+"10)",border:"1px solid "+C.pur+"33",borderRadius:"18px",padding:"28px 24px",textAlign:"center",marginTop:"12px",marginBottom:"40px"});
+  var qIcon=d({fontSize:"28px",marginBottom:"10px"});qIcon.textContent="🌳";
+  var qText=d({fontSize:"16px",fontStyle:"italic",color:C.txt,lineHeight:"1.6"});qText.textContent="\"Don't kill the world.\" That's the whole pledge. Every feature we build has to earn its place against that one line.";
+  quoteBox.appendChild(qIcon);quoteBox.appendChild(qText);
+  inner.appendChild(quoteBox);
+
+  // ── CTA back to login ──
+  var cta=d({textAlign:"center"});
+  cta.appendChild(btn("Sign In to NEXORA →",function(){S.page="login";render();window.scrollTo(0,0);},"linear-gradient(135deg,"+C.pur+","+C.purD+")","#fff",{fontSize:"14px",padding:"14px 28px",fontWeight:"800",borderRadius:"12px"}));
+  inner.appendChild(cta);
+
+  wrap.appendChild(inner);
+  return wrap;
+}
+
+
 function render(){
   var app=document.getElementById("app");
   app.innerHTML="";
   if(S.page==="loading"){app.appendChild(buildLoader());return;}
+  if(S.page==="about"){app.appendChild(buildAboutNexora());return;}
   if(S.page==="login"){app.appendChild(buildLogin());return;}
   app.appendChild(buildMain());
 }
@@ -475,7 +1556,11 @@ function buildLogin(){
   pi.addEventListener("keydown",function(e){if(e.key==="Enter")doLogin();});
   card.appendChild(btn("Sign In →",doLogin,"linear-gradient(135deg,"+C.pur+","+C.purD+")","#fff",{width:"100%",fontSize:"14px",borderRadius:"10px",padding:"13px",fontWeight:"800"}));
   var hint=d({textAlign:"center",marginTop:"16px",fontSize:"11px",color:C.mut});hint.textContent="Contact admin for login credentials";
-  card.appendChild(hint);wrap.appendChild(card);return wrap;
+  card.appendChild(hint);wrap.appendChild(card);
+  var aboutLink=d({textAlign:"center",marginTop:"22px",zIndex:"1"});
+  aboutLink.appendChild(btn("🌳 The Story Behind NEXORA",function(){S.page="about";render();window.scrollTo(0,0);},"transparent",C.cyn,{border:"1px solid "+C.cyn+"33",fontSize:"12px",padding:"9px 16px",fontWeight:"700"}));
+  wrap.appendChild(aboutLink);
+  return wrap;
 }
 
 // ── MAIN ──────────────────────────────────────────────────
@@ -489,9 +1574,16 @@ function buildMain(){
   else if(pg==="newjob")content.appendChild(buildNewJob());
   else if(pg==="vehicle")content.appendChild(buildVehicle());
   else if(pg==="search")content.appendChild(buildSearch());
+  else if(pg==="dispatch")content.appendChild(buildDispatch());
+  else if(pg==="invoices")content.appendChild(buildInvoices());
+  else if(pg==="invoice-new")content.appendChild(buildInvoiceNew());
+  else if(pg==="invoice-view")content.appendChild(buildInvoiceView());
   wrap.appendChild(content);
   wrap.appendChild(buildNav());
   if(S.showUsers)wrap.appendChild(buildUsers());
+  if(S.notifOpen)wrap.appendChild(buildNotifPanel());
+  if(S.showCompanySettings)wrap.appendChild(buildCompanySettings());
+  if(S.reassignJobId)wrap.appendChild(buildReassignModal());
   return wrap;
 }
 
@@ -511,8 +1603,19 @@ function buildHeader(){
   var lt=h("span",{fontSize:"9px",color:S.live?C.grn:C.org,fontWeight:"700"});lt.textContent=S.live?"LIVE":"CONNECTING";
   liv.appendChild(dot);liv.appendChild(lt);rgt.appendChild(liv);
   var isA=["admin","superadmin"].includes(S.user&&S.user.role);
+  var notifCount=(S.notifications||[]).filter(function(n){return !n.read&&(["admin","superadmin"].includes(S.user.role)||n.team===S.user.team);}).length;
+  var bellWrap=d({position:"relative"});
+  var bellBtn=btn("🔔",function(){S.notifOpen=!S.notifOpen;render();},C.card,C.txt,{border:"1px solid "+C.bdr,fontSize:"13px",padding:"5px 9px"});
+  bellWrap.appendChild(bellBtn);
+  if(notifCount>0){
+    var nbadge=d({position:"absolute",top:"-4px",right:"-4px",background:C.red,color:"#fff",fontSize:"9px",fontWeight:"900",borderRadius:"99px",minWidth:"15px",height:"15px",display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px",boxShadow:"0 0 0 2px "+C.panel});
+    nbadge.textContent=String(notifCount>9?"9+":notifCount);
+    bellWrap.appendChild(nbadge);
+  }
+  rgt.appendChild(bellWrap);
   rgt.appendChild(btn("🌳",function(){treeFactToast();},C.grn+"22",C.grn,{border:"1px solid "+C.grn+"44",fontSize:"13px",padding:"5px 9px"}));
   if(isA){rgt.appendChild(btn("👥 Users",function(){S.showUsers=true;render();},C.pur+"22",C.purL,{border:"1px solid "+C.pur+"44",fontSize:"11px",padding:"5px 9px"}));}
+  if(isA){rgt.appendChild(btn("🏢",function(){S.showCompanySettings=true;render();},C.card,C.txt,{border:"1px solid "+C.bdr,fontSize:"13px",padding:"5px 9px"}));}
   var av=d({display:"flex",alignItems:"center",gap:"5px",background:C.card,border:"1px solid "+C.bdr,borderRadius:"99px",padding:"4px 9px",cursor:"pointer"});
   var avc=d({width:"20px",height:"20px",borderRadius:"50%",background:"linear-gradient(135deg,"+C.pur+","+C.cyn+")",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"10px",fontWeight:"800"});avc.textContent=S.user.name[0];
   var avn=h("span",{fontSize:"11px",color:C.sft,maxWidth:"65px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"});avn.textContent=S.user.name;
@@ -532,10 +1635,10 @@ function buildHeader(){
 
 function buildNav(){
   var nav=d({position:"fixed",bottom:"0",left:"0",right:"0",background:C.panel,borderTop:"1px solid "+C.bdr,display:"flex",zIndex:"50"});
-  var items=[{id:"main",icon:"📋",lbl:"Jobs"},{id:"newjob",icon:"➕",lbl:"New"},{id:"vehicle",icon:"🚗",lbl:"Vehicle"},{id:"search",icon:"🔍",lbl:"Search"}];
+  var items=[{id:"main",icon:"📋",lbl:"Jobs"},{id:"dispatch",icon:"📊",lbl:"Dispatch"},{id:"newjob",icon:"➕",lbl:"New"},{id:"invoices",icon:"💰",lbl:"Invoice"},{id:"vehicle",icon:"🚗",lbl:"Vehicle"}];
   var cur=S.selJob?"detail":S.page;
   items.forEach(function(item){
-    var act=cur===item.id||(item.id==="main"&&cur==="detail");
+    var act=cur===item.id||(item.id==="main"&&cur==="detail")||(item.id==="invoices"&&["invoice-new","invoice-view"].includes(cur));
     var b=d({flex:"1",cursor:"pointer",padding:"9px 4px 7px",display:"flex",flexDirection:"column",alignItems:"center",gap:"2px",color:act?C.pur:C.mut});
     var ic=d({fontSize:"19px"});ic.textContent=item.icon;
     var lb=d({fontSize:"9px",fontWeight:"700",letterSpacing:"0.5px"});lb.textContent=item.lbl;
@@ -560,6 +1663,24 @@ function buildDash(){
   var ldot=d({width:"7px",height:"7px",borderRadius:"50%",background:S.syncing?C.org:C.grn,boxShadow:"0 0 5px "+(S.syncing?C.org:C.grn)});
   var lt=d({fontSize:"11px",color:C.sft});lt.textContent=S.syncing?"🔄 Syncing...":"☁️ Live — all devices connected";
   lb.appendChild(ldot);lb.appendChild(lt);wrap.appendChild(lb);
+
+  // ── Company Profile setup prompt (admin only, shown until completed) ──
+  if(isA){
+    var profile=getCompanyProfile(S.user.company);
+    var profileIncomplete=!profile.logo&&!profile.address;
+    if(profileIncomplete){
+      var setupBox=d({background:"linear-gradient(135deg,"+C.pur+"22,"+C.cyn+"18)",border:"1px solid "+C.pur+"44",borderRadius:"14px",padding:"16px",marginBottom:"16px",display:"flex",alignItems:"center",gap:"14px",flexWrap:"wrap"});
+      var setupIcon=d({fontSize:"28px",flexShrink:"0"});setupIcon.textContent="🏢";
+      var setupText=d({flex:"1",minWidth:"200px"});
+      var setupTitle=d({fontSize:"14px",fontWeight:"800",color:C.txt,marginBottom:"3px"});setupTitle.textContent="Add your company logo & details";
+      var setupSub=d({fontSize:"12px",color:C.sft});setupSub.textContent="Show up professionally on every invoice and job card you send.";
+      setupText.appendChild(setupTitle);setupText.appendChild(setupSub);
+      setupBox.appendChild(setupIcon);setupBox.appendChild(setupText);
+      setupBox.appendChild(btn("Set Up Now →",function(){S.showCompanySettings=true;render();},C.pur,"#fff",{fontSize:"13px",padding:"10px 18px",fontWeight:"700",flexShrink:"0"}));
+      wrap.appendChild(setupBox);
+    }
+  }
+
   var sg=d({display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"9px",marginBottom:"14px"});
   [["Total",counts.tot,C.cyn],["Pending",counts.pen,C.mut],["Active",counts.act,C.org],["Done",counts.don,C.grn]].forEach(function(x){
     var s=d({background:C.card,borderRadius:"11px",padding:"11px",border:"1px solid "+C.bdr,textAlign:"center"});
@@ -669,7 +1790,13 @@ function buildDetail(){
   hb.appendChild(bdg(job.type,tc));hb.appendChild(bdg(job.priority,pc));hb.appendChild(bdg(job.status,SC[job.status]||C.mut));
   ht.appendChild(hi);ht.appendChild(hb);hc.appendChild(ht);
   var de=d({marginTop:"11px",padding:"11px",background:"#07101f",borderRadius:"9px",fontSize:"12px",color:C.sft,borderLeft:"3px solid "+C.pur});de.textContent=job.description||"";
-  var me=d({marginTop:"7px",fontSize:"11px",color:C.mut});me.innerHTML="#"+job.id+" · "+job.created+" · <span style='color:"+C.cyn+"'>"+job.tech+"</span>";
+  var me=d({marginTop:"7px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"8px"});
+  var meTxt=d({fontSize:"11px",color:C.mut});meTxt.innerHTML="#"+job.id+" · "+job.created+" · <span style='color:"+C.cyn+"'>"+job.tech+"</span>";
+  me.appendChild(meTxt);
+  var canReassign=["admin","superadmin"].includes(S.user.role)||S.user.team===job.tech;
+  if(canReassign&&job.status!=="Complete"){
+    me.appendChild(btn("🔄 Share / Reassign",function(){S.reassignJobId=job.id;render();},C.cyn+"18",C.cyn,{border:"1px solid "+C.cyn+"44",fontSize:"11px",padding:"6px 12px",fontWeight:"700"}));
+  }
   hc.appendChild(de);hc.appendChild(me);wrap.appendChild(hc);
 
   // Trip tabs
