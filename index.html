@@ -2634,6 +2634,23 @@ function buildNewJob(){
   var sw2=d({gridColumn:"1/-1"});sw2.appendChild(fw("Site Name *","site","e.g. Greenfield Primary"));g.appendChild(sw2);
   g.appendChild(sw("Job Type","type",JTYPES));g.appendChild(sw("Priority","priority",["Normal","High","Urgent"]));
   g.appendChild(fw("Town *","town","e.g. Durban"));g.appendChild(fw("Assigned Team","tech","e.g. Team Alpha"));
+  var tradeRefWrap=d({gridColumn:"1/-1"});
+  var techWithTrade=S.users.filter(function(u){return u.company===S.user.company&&u.trade;});
+  if(techWithTrade.length>0){
+    var tradeRef=d({background:"#07101f",border:"1px solid "+C.bdr,borderRadius:"9px",padding:"9px 12px",marginBottom:"12px",marginTop:"-2px"});
+    var tradeRefLbl=d({fontSize:"10px",fontWeight:"700",color:C.cyn,marginBottom:"6px",textTransform:"uppercase",letterSpacing:"0.5px"});tradeRefLbl.textContent="🔧 Your Teams by Trade — tap to assign";
+    tradeRef.appendChild(tradeRefLbl);
+    var chips=d({display:"flex",flexWrap:"wrap",gap:"6px"});
+    techWithTrade.forEach(function(u){
+      var chip=d({fontSize:"11px",background:C.cyn+"18",color:C.cyn,border:"1px solid "+C.cyn+"33",borderRadius:"99px",padding:"5px 11px",cursor:"pointer"});
+      chip.textContent=u.trade+" — "+(u.team||u.name);
+      chip.addEventListener("click",function(){S.njForm.tech=u.team||u.name;render();});
+      chips.appendChild(chip);
+    });
+    tradeRef.appendChild(chips);
+    tradeRefWrap.appendChild(tradeRef);
+  }
+  g.appendChild(tradeRefWrap);
   g.appendChild(fw("Client Contact","contact","Name"));g.appendChild(fw("Phone","phone","071 234 5678","tel"));
   var aw=d({gridColumn:"1/-1"});aw.appendChild(fw("Address","address","Full street address"));g.appendChild(aw);
   var dw=d({gridColumn:"1/-1",marginBottom:"12px"});dw.appendChild(lbl("Description"));
@@ -2842,12 +2859,12 @@ function buildUsers(){
   var tp=d({display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"});
   var hd=d({fontSize:"16px",fontWeight:"800"});hd.textContent="👥 User Management";
   tp.appendChild(hd);tp.appendChild(btn("✕",function(){S.showUsers=false;render();},C.bdr,C.sft,{border:"none",padding:"5px 10px"}));card.appendChild(tp);
-  var fn={name:"",username:"",password:"",team:"",role:"technician"};
+  var fn={name:"",username:"",password:"",team:"",trade:"",role:"technician"};
   var fg=d({background:"#07101f",borderRadius:"11px",padding:"13px",marginBottom:"14px",border:"1px solid "+C.bdr});
   var fl=d({fontSize:"12px",color:C.cyn,fontWeight:"700",textTransform:"uppercase",letterSpacing:"1px",marginBottom:"11px"});fl.textContent="➕ Add New User";fg.appendChild(fl);
   var gg=d({display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"});
   function ff(lbl2,key,ph){var w=d({marginBottom:"10px"});var l=d({fontSize:"11px",color:C.sft,marginBottom:"4px",fontWeight:"700",textTransform:"uppercase",letterSpacing:"1px"});l.textContent=lbl2;w.appendChild(l);w.appendChild(inp(ph,fn[key],function(v){fn[key]=v;}));return w;}
-  gg.appendChild(ff("Full Name *","name","John Smith"));gg.appendChild(ff("Team","team","Team Alpha"));gg.appendChild(ff("Username *","username","john.smith"));
+  gg.appendChild(ff("Full Name *","name","John Smith"));gg.appendChild(ff("Team","team","Team Alpha"));gg.appendChild(ff("Trade / Specialty","trade","e.g. Locksmith, Electrician, Signage"));gg.appendChild(ff("Username *","username","john.smith"));
   var pwBox=d({marginBottom:"10px"});var pwLbl=d({fontSize:"11px",color:C.sft,marginBottom:"4px",fontWeight:"700",textTransform:"uppercase",letterSpacing:"1px"});pwLbl.textContent="Password *";
   pwBox.appendChild(pwLbl);pwBox.appendChild(pwInput("Min 6 chars",fn.password,function(v){fn.password=v;}));gg.appendChild(pwBox);
   var rw=d({gridColumn:"1/-1",marginBottom:"10px"});var rl=d({fontSize:"11px",color:C.sft,marginBottom:"4px",fontWeight:"700",textTransform:"uppercase",letterSpacing:"1px"});rl.textContent="Role";
@@ -2857,7 +2874,7 @@ function buildUsers(){
     if(!fn.name||!fn.username||!fn.password){msg.textContent="❌ All fields required";msg.style.display="block";msg.style.background="#ef444422";msg.style.color=C.red;return;}
     if(fn.password.length<6){msg.textContent="❌ Password min 6 chars";msg.style.display="block";msg.style.background="#ef444422";msg.style.color=C.red;return;}
     if(S.users.filter(function(u){return u.username.toLowerCase()===fn.username.toLowerCase();}).length){msg.textContent="❌ Username exists";msg.style.display="block";msg.style.background="#ef444422";msg.style.color=C.red;return;}
-    var newU={id:String(Date.now()),name:fn.name,username:fn.username,password:fn.password,team:fn.team,role:fn.role,company:S.user.company};
+    var newU={id:String(Date.now()),name:fn.name,username:fn.username,password:fn.password,team:fn.team,trade:fn.trade,role:fn.role,company:S.user.company};
     S.users.push(newU);
     if(db){try{db.ref("users/"+newU.id).set(newU);}catch(e){}}
     msg.textContent="✅ User added!";msg.style.display="block";msg.style.background="#22c55e22";msg.style.color=C.grn;setTimeout(function(){msg.style.display="none";},3000);
@@ -2871,7 +2888,7 @@ function buildUsers(){
     var row=d({background:"#07101f",borderRadius:"9px",padding:"10px 11px",border:"1px solid "+C.bdr,display:"flex",alignItems:"center",gap:"9px",cursor:"pointer"});
     row.addEventListener("click",function(){S.showUsers=false;S.viewTechId=u.id;render();});
     var av=d({width:"30px",height:"30px",borderRadius:"50%",background:u.role==="admin"?"linear-gradient(135deg,"+C.org+","+C.gld+")":"linear-gradient(135deg,"+C.pur+","+C.cyn+")",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"13px",fontWeight:"800",flexShrink:"0"});av.textContent=u.name[0];
-    var inf=d({flex:"1"});var n=d({fontSize:"12px",fontWeight:"700"});n.textContent=u.name;var s=d({fontSize:"10px",color:C.mut});s.innerHTML="@"+u.username+" · ●●●●●● · <span style='color:"+(u.role==="admin"?C.org:C.cyn)+"'>"+u.role+"</span>";inf.appendChild(n);inf.appendChild(s);row.appendChild(av);row.appendChild(inf);
+    var inf=d({flex:"1"});var n=d({fontSize:"12px",fontWeight:"700"});n.textContent=u.name;var s=d({fontSize:"10px",color:C.mut});s.innerHTML="@"+u.username+" · ●●●●●● · <span style='color:"+(u.role==="admin"?C.org:C.cyn)+"'>"+u.role+"</span>"+(u.trade?" · 🔧 "+u.trade:"");inf.appendChild(n);inf.appendChild(s);row.appendChild(av);row.appendChild(inf);
     if(u.role!=="admin"&&u.id!==S.user.id){row.appendChild(btn("Remove",function(e){e.stopPropagation();S.users=S.users.filter(function(x){return x.id!==u.id;});render();},C.red+"22",C.red,{border:"1px solid "+C.red+"44",fontSize:"11px",padding:"3px 9px"}));}
     var arrow=d({fontSize:"14px",color:C.cyn,flexShrink:"0"});arrow.textContent="→";row.appendChild(arrow);
     ul2.appendChild(row);
