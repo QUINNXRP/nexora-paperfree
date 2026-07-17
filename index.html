@@ -2317,7 +2317,7 @@ function buildDash(){
       jc.appendChild(br);
       if(steps.length){var sb=d({display:"flex",alignItems:"center",gap:"7px",marginTop:"5px"});var sp=d({background:C.bdr,borderRadius:"99px",height:"3px",flex:"1"});var sf=d({background:sd===steps.length?C.grn:C.org,height:"3px",borderRadius:"99px",width:(steps.length?(sd/steps.length)*100:0)+"%"});sp.appendChild(sf);sb.appendChild(sp);var sc=d({fontSize:"10px",color:C.mut});sc.textContent="📋 "+sd+"/"+steps.length;sb.appendChild(sc);jc.appendChild(sb);}
       if(["Travelling","On Site","Complete"].includes(job.status)){var tm=d({display:"flex",gap:"12px",marginTop:"5px",fontSize:"11px"});var tv=d({color:C.org});tv.textContent="🚗 "+fmt(trip.travelSec||0);var sv=d({color:C.grn});sv.textContent="🔧 "+fmt(trip.siteSec||0);var ph=d({color:C.mut});ph.textContent="📷 "+((trip.photosBefore||[]).length+(trip.photosAfter||[]).length);tm.appendChild(tv);tm.appendChild(sv);tm.appendChild(ph);jc.appendChild(tm);}
-      jc.addEventListener("click",function(){S.selJob=job;S.comments=trip.comments||"";S.materials=trip.materials||"";S.partsUsed=(trip.partsUsed||[]).slice();S.showSum=false;S.smsAlert=null;clearInterval(S.tTimer);clearInterval(S.sTimer);S.tTimer=null;S.sTimer=null;S.tSec=trip.travelSec||0;S.sSec=trip.siteSec||0;render();});
+      jc.addEventListener("click",function(){S.selJob=job;S.comments=trip.comments||"";S.materials=trip.materials||"";S.materialsList=null;S.partsUsed=(trip.partsUsed||[]).slice();S.showSum=false;S.smsAlert=null;clearInterval(S.tTimer);clearInterval(S.sTimer);S.tTimer=null;S.sTimer=null;S.tSec=trip.travelSec||0;S.sSec=trip.siteSec||0;render();});
       jl.appendChild(jc);
     });
   }
@@ -2435,7 +2435,7 @@ function buildDetail(){
       var trips=job.trips.slice();trips[job.currentTrip]=Object.assign({},trip,{travelSec:S.tSec,siteSec:S.sSec,comments:S.comments,materials:S.materials,partsUsed:S.partsUsed});
       var nt={num:trips.length+1,comments:"",materials:"",partsUsed:[],travelSec:0,siteSec:0,travelStart:null,siteStart:null,photosBefore:[],photosAfter:[],complete:false};
       var u=Object.assign({},job,{status:"Dispatched",trips:trips.concat([nt]),currentTrip:trips.length});
-      saveJob(u);S.selJob=u;S.comments="";S.materials="";S.partsUsed=[];S.tSec=0;S.sSec=0;S.showSum=false;render();
+      saveJob(u);S.selJob=u;S.comments="";S.materials="";S.materialsList=null;S.partsUsed=[];S.tSec=0;S.sSec=0;S.showSum=false;render();
     },C.org));
   }
   wrap.appendChild(ab);
@@ -2473,7 +2473,28 @@ function buildDetail(){
   var nc=d({background:C.card,borderRadius:"14px",padding:"14px",border:"1px solid "+C.bdr,marginBottom:"14px"});
   var nl=d({fontSize:"12px",fontWeight:"700",color:C.sft,textTransform:"uppercase",letterSpacing:"1px",marginBottom:"11px"});nl.textContent="📝 Trip Notes";nc.appendChild(nl);
   var ml=d({fontSize:"11px",color:C.sft,marginBottom:"5px",fontWeight:"700",textTransform:"uppercase",letterSpacing:"1px"});ml.textContent="Materials Used";nc.appendChild(ml);
-  var mi=inp("e.g. 2x cables, 1x router...",S.materials,function(v){S.materials=v;});nc.appendChild(mi);
+  if(!Array.isArray(S.materialsList)){
+    S.materialsList=S.materials?S.materials.split(",").map(function(x){return x.trim();}).filter(Boolean):[""];
+    if(S.materialsList.length===0)S.materialsList=[""];
+  }
+  var matListBox=d({});nc.appendChild(matListBox);
+  function syncMaterials(){S.materials=S.materialsList.map(function(x){return x.trim();}).filter(Boolean).join(", ");}
+  function renderMaterialsList(){
+    matListBox.innerHTML="";
+    S.materialsList.forEach(function(matVal,mi2){
+      var mRow=d({display:"flex",gap:"7px",marginBottom:"6px",alignItems:"center"});
+      var mInput=inp("e.g. 2x cables, 1x router...",matVal,function(v){S.materialsList[mi2]=v;syncMaterials();},"text",{flex:"1",marginBottom:"0"});
+      mRow.appendChild(mInput);
+      if(S.materialsList.length>1){
+        var mDel=d({color:C.mut,cursor:"pointer",fontSize:"17px",padding:"0 4px"});mDel.textContent="×";
+        mDel.addEventListener("click",function(){S.materialsList.splice(mi2,1);syncMaterials();renderMaterialsList();});
+        mRow.appendChild(mDel);
+      }
+      matListBox.appendChild(mRow);
+    });
+  }
+  renderMaterialsList();
+  nc.appendChild(btn("+ Add Material",function(){S.materialsList.push("");renderMaterialsList();},C.bdr,C.cyn,{border:"1px solid "+C.cyn+"44",fontSize:"12px",padding:"7px 13px",marginBottom:"10px"}));
 
   // ── Parts Used (from company inventory) ──
   var invParts=getCompanyInventory(job.company||S.user.company);
