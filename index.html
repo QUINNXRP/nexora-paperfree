@@ -2088,7 +2088,16 @@ function buildHeader(){
   }
   rgt.appendChild(bellWrap);
   rgt.appendChild(btn("🌳",function(){treeFactToast();},C.grn+"22",C.grn,{border:"1px solid "+C.grn+"44",fontSize:"13px",padding:"5px 9px"}));
-  if(isA){rgt.appendChild(btn("👥 Users",function(){S.showUsers=true;render();},C.pur+"22",C.purL,{border:"1px solid "+C.pur+"44",fontSize:"11px",padding:"5px 9px"}));}
+  if(isA){
+    var userCount=S.users.filter(function(u){return u.company===S.user.company;}).length;
+    var usersWrap=d({position:"relative"});
+    var usersBtn=btn("👥 Users",function(){S.showUsers=true;render();},C.pur+"22",C.purL,{border:"1px solid "+C.pur+"44",fontSize:"11px",padding:"5px 9px"});
+    usersWrap.appendChild(usersBtn);
+    var ubadge=d({position:"absolute",top:"-4px",right:"-4px",background:C.grn,color:"#fff",fontSize:"9px",fontWeight:"900",borderRadius:"99px",minWidth:"15px",height:"15px",display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px",boxShadow:"0 0 0 2px "+C.panel});
+    ubadge.textContent=String(userCount>99?"99+":userCount);
+    usersWrap.appendChild(ubadge);
+    rgt.appendChild(usersWrap);
+  }
   if(isA){rgt.appendChild(btn("🏢",function(){S.showCompanySettings=true;render();},C.card,C.txt,{border:"1px solid "+C.bdr,fontSize:"13px",padding:"5px 9px"}));}
   if(isA){rgt.appendChild(btn("📦",function(){S.showInventory=true;render();},C.card,C.txt,{border:"1px solid "+C.bdr,fontSize:"13px",padding:"5px 9px"}));}
   var av=d({display:"flex",alignItems:"center",gap:"5px",background:C.card,border:"1px solid "+C.bdr,borderRadius:"99px",padding:"4px 9px",cursor:"pointer"});
