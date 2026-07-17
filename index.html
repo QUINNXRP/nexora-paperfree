@@ -2078,7 +2078,7 @@ function buildPrintGateModal(){
   }
   card.appendChild(q("1","Do you understand that printing this goes against everything NEXORA — and A Thousand Words — was built for?"));
   card.appendChild(q("2","Have you genuinely explored every other option before reaching for print?"));
-  card.appendChild(q("3","Before you decide, please take 3–5 minutes to watch the short film on the A Thousand Words website. If you still feel you need to print after that, go right ahead.",C.grn));
+  card.appendChild(q("3","Before you decide, please take 3–5 minutes to watch the <a href='https://athousandwordssavetrees.org' target='_blank' style='color:"+C.grn+";font-weight:800;text-decoration:underline'>short film on the A Thousand Words website</a>. If you still feel you need to print after that, go right ahead.",C.grn));
 
   card.appendChild(btn("🌳 Watch the film first",function(){window.open("https://athousandwordssavetrees.org","_blank");},"linear-gradient(135deg,"+C.grn+",#059669)","#fff",{width:"100%",fontSize:"14px",padding:"13px",fontWeight:"800",marginBottom:"10px"}));
   card.appendChild(btn("✕ Cancel — I'll stay digital",function(){S.printGate=false;render();},C.card,C.txt,{border:"1px solid "+C.bdr,width:"100%",fontSize:"13px",padding:"12px",fontWeight:"700",marginBottom:"12px"}));
