@@ -223,10 +223,10 @@ var S={
   vShowAdd:false,vNv:{name:"",type:"Car",plate:"",year:2026,odo:0,lastSvc:0,licExp:""},
   tSec:0,sSec:0,tTimer:null,sTimer:null,
   comments:"",materials:"",showSum:false,smsAlert:null,eta:25,saving:false,
-  njForm:{site:"",type:"Installation",town:"",tech:"",contact:"",phone:"",address:"",description:"",priority:"Normal"},
+  njForm:{site:"",type:"Installation",town:"",tech:"",contact:"",phone:"",email:"",address:"",description:"",priority:"Normal"},
   njSteps:[{id:1,text:"",qty:1}],
   tipIdx:0,tipTimer:null,loadProg:0,loadTimer:null,yLogo:"",stampMode:false,
-  showCompanySettings:false,reassignJobId:null,showInventory:false,partsUsed:[],viewTechId:null,scanning:false,scanProgress:0,scanLines:null,showScanReview:false,
+  showCompanySettings:false,reassignJobId:null,showInventory:false,partsUsed:[],viewTechId:null,scanning:false,scanProgress:0,scanLines:null,showScanReview:false,sendInvoiceAlert:null,
   companyInventory:{},
   companyProfiles:{
     "Yantek Industries":{address:"31 Thora Crescent, Wynberg, Sandton, Johannesburg, 2191",phone:"010 020 2960",email:"info@yantek.co.za",vat:"4400127447",logo:""},
@@ -647,7 +647,7 @@ function buildInvoiceNew(){
     var dueAt=new Date(issuedAt.getTime()+30*24*60*60*1000);
     var inv={
       number:num,jobId:j.id,client:j.site||"Client",address:j.address||"",
-      contact:j.contact||"",phone:j.phone||"",
+      contact:j.contact||"",phone:j.phone||"",email:j.email||"",
       lines:JSON.parse(JSON.stringify(S.invLines)),
       subtotal:S._invTotals.sub,vat:S._invTotals.vat,total:S._invTotals.tot,
       vatEnabled:S.invVat.enabled,vatPercent:S.invVat.percent,
@@ -682,7 +682,7 @@ function buildInvoiceView(){
   wrap.appendChild(bk);
 
   // Invoice paper
-  var paper=d({background:"#fff",color:"#1a2332",borderRadius:"14px",padding:"24px",marginBottom:"14px"});
+  var paper=d({background:"#fff",color:"#1a2332",borderRadius:"14px",padding:"24px",marginBottom:"14px",position:"relative",overflow:"hidden"});
 
   // ── Company details (from Company Profile settings, with sensible fallback) ──
   var COMPANY_DEFAULTS={
@@ -931,15 +931,22 @@ function buildInvoiceView(){
   var pFoot=d({marginTop:"20px",paddingTop:"14px",borderTop:"1px solid #eee",textAlign:"center",fontSize:"10px",color:"#aaa"});
   pFoot.innerHTML="Thank you for your business! 🌳<br>Every digital invoice saves paper. Powered by NEXORA · A Thousand Words";
   paper.appendChild(pFoot);
+
+  if(inv.status==="Paid"){
+    var stampOv=d({position:"absolute",top:"45%",right:"8%",transform:"translateY(-50%) rotate(-14deg)",width:"120px",height:"120px",opacity:"0.9",pointerEvents:"none",zIndex:"5"});
+    stampOv.appendChild(buildPaidStamp(120));
+    paper.appendChild(stampOv);
+  }
+
   wrap.appendChild(paper);
 
   // Action buttons
   var acts=d({display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px"});
   acts.appendChild(btn("📧 Send to Client",function(){alert("Invoice "+inv.number+" ready to send to "+inv.client+"!\\n\\n(Connect your email to send automatically)");},C.cyn,"#fff",{fontSize:"13px",padding:"12px",fontWeight:"700"}));
   if(inv.status!=="Paid"){
-    acts.appendChild(btn("✅ Mark as Paid",function(){inv.status="Paid";saveInvoice(inv);render();},C.grn,"#fff",{fontSize:"13px",padding:"12px",fontWeight:"700"}));
+    acts.appendChild(btn("✅ Mark as Paid",function(){inv.status="Paid";inv.paidDate=new Date().toLocaleDateString("en-ZA");saveInvoice(inv);render();},C.grn,"#fff",{fontSize:"13px",padding:"12px",fontWeight:"700"}));
   } else {
-    acts.appendChild(btn("💳 Paid via Paystack",function(){},C.grn+"22",C.grn,{fontSize:"13px",padding:"12px",fontWeight:"700"}));
+    acts.appendChild(btn("📤 Send Paid Invoice",function(){S.sendInvoiceAlert=inv;render();},C.grn,"#fff",{fontSize:"13px",padding:"12px",fontWeight:"700"}));
   }
   wrap.appendChild(acts);
   // Print button
@@ -1934,6 +1941,92 @@ function buildScanReview(){
 }
 
 
+
+// ══════════════════════════════════════════════════════════
+// ── NEW FEATURE: PAID STAMP + SEND PAID INVOICE ───────────
+// ══════════════════════════════════════════════════════════
+function buildPaidStamp(size){
+  var ns="http://www.w3.org/2000/svg";
+  var svg=document.createElementNS(ns,"svg");
+  svg.setAttribute("width",size);svg.setAttribute("height",size);svg.setAttribute("viewBox","0 0 200 200");
+  svg.style.overflow="visible";
+  var ink="#10B981";
+  var defs=document.createElementNS(ns,"defs");
+  defs.innerHTML='<path id="paidTopArc" d="M 28 100 A 72 72 0 0 1 172 100" fill="none"/>'+
+                 '<path id="paidBotArc" d="M 30 100 A 70 70 0 0 0 170 100" fill="none"/>';
+  svg.appendChild(defs);
+  function circ(r,sw,op){var c=document.createElementNS(ns,"circle");c.setAttribute("cx",100);c.setAttribute("cy",100);c.setAttribute("r",r);c.setAttribute("fill","none");c.setAttribute("stroke",ink);c.setAttribute("stroke-width",sw);c.setAttribute("opacity",op||"1");return c;}
+  svg.appendChild(circ(90,4,"0.9"));svg.appendChild(circ(82,1.5,"0.9"));svg.appendChild(circ(56,1.5,"0.7"));
+
+  var tt=document.createElementNS(ns,"text");tt.setAttribute("font-family","Arial,sans-serif");tt.setAttribute("font-size","14");tt.setAttribute("font-weight","900");tt.setAttribute("fill",ink);tt.setAttribute("letter-spacing","3");tt.setAttribute("opacity","0.9");
+  var ttp=document.createElementNS(ns,"textPath");ttp.setAttributeNS("http://www.w3.org/1999/xlink","href","#paidTopArc");ttp.setAttribute("startOffset","50%");ttp.setAttribute("text-anchor","middle");ttp.textContent="NEXORA INVOICE";
+  tt.appendChild(ttp);svg.appendChild(tt);
+
+  var bt=document.createElementNS(ns,"text");bt.setAttribute("font-family","Arial,sans-serif");bt.setAttribute("font-size","11");bt.setAttribute("font-weight","700");bt.setAttribute("fill",ink);bt.setAttribute("letter-spacing","2");bt.setAttribute("opacity","0.9");
+  var btp=document.createElementNS(ns,"textPath");btp.setAttributeNS("http://www.w3.org/1999/xlink","href","#paidBotArc");btp.setAttribute("startOffset","50%");btp.setAttribute("text-anchor","middle");btp.textContent="PAYMENT CONFIRMED";
+  bt.appendChild(btp);svg.appendChild(bt);
+
+  var check=document.createElementNS(ns,"text");check.setAttribute("x",100);check.setAttribute("y",78);check.setAttribute("text-anchor","middle");check.setAttribute("font-size","22");check.setAttribute("fill",ink);check.textContent="✓";svg.appendChild(check);
+
+  var cx=document.createElementNS(ns,"text");cx.setAttribute("x",100);cx.setAttribute("y",114);cx.setAttribute("text-anchor","middle");cx.setAttribute("font-family","Arial,sans-serif");cx.setAttribute("font-size","30");cx.setAttribute("font-weight","900");cx.setAttribute("fill",ink);cx.setAttribute("letter-spacing","3");cx.textContent="PAID";svg.appendChild(cx);
+
+  var dt=document.createElementNS(ns,"text");dt.setAttribute("x",100);dt.setAttribute("y",132);dt.setAttribute("text-anchor","middle");dt.setAttribute("font-family","Arial,sans-serif");dt.setAttribute("font-size","9");dt.setAttribute("font-weight","700");dt.setAttribute("fill",ink);dt.setAttribute("opacity","0.85");dt.textContent=new Date().toLocaleDateString("en-ZA");svg.appendChild(dt);
+
+  return svg;
+}
+
+function buildInvoiceSendMsg(inv){
+  return "Good day "+(inv.contact||inv.client)+"! 🌳\n\nYour invoice "+inv.number+" for "+inv.client+" has been marked as PAID ✅\n\nAmount: R "+inv.total.toFixed(2)+"\nDate Paid: "+(inv.paidDate||new Date().toLocaleDateString("en-ZA"))+"\n\nThank you for your business!\n\n────────────────────\nPowered by NEXORA · nexorapaperfree.org";
+}
+
+function buildSendInvoiceAlert(){
+  var inv=S.sendInvoiceAlert;
+  if(!inv)return d({});
+  var ov=d({position:"fixed",inset:"0",background:"#000a",zIndex:"115",display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"});
+  ov.addEventListener("click",function(e){if(e.target===ov){S.sendInvoiceAlert=null;render();}});
+  var card=d({background:C.card,borderRadius:"18px",padding:"22px",width:"100%",maxWidth:"420px",border:"1px solid "+C.grn+"44",maxHeight:"85vh",overflowY:"auto"});
+  card.addEventListener("click",function(e){e.stopPropagation();});
+
+  var tp=d({display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"});
+  var hd=d({fontSize:"16px",fontWeight:"800"});hd.textContent="📤 Send Paid Invoice";
+  tp.appendChild(hd);tp.appendChild(btn("✕",function(){S.sendInvoiceAlert=null;render();},C.bdr,C.sft,{border:"none",padding:"5px 10px"}));
+  card.appendChild(tp);
+
+  var msg=buildInvoiceSendMsg(inv);
+  var pv=d({background:"#0a1a0a",borderRadius:"9px",padding:"11px",marginBottom:"14px",border:"1px solid "+C.grn+"33"});
+  var pr=h("pre",{fontSize:"11px",color:C.sft,whiteSpace:"pre-wrap",fontFamily:"inherit",lineHeight:"1.7",margin:"0"});pr.textContent=msg;pv.appendChild(pr);
+  card.appendChild(pv);
+
+  if(!inv.email){
+    var emailLbl=d({fontSize:"11px",fontWeight:"700",color:C.sft,marginBottom:"5px",textTransform:"uppercase"});emailLbl.textContent="Client Email (for sending)";
+    card.appendChild(emailLbl);
+    var emailInp=inp("client@email.com","",function(v){inv.email=v;},"email");
+    card.appendChild(emailInp);
+    var spacer=d({height:"10px"});card.appendChild(spacer);
+  }
+
+  var a1=h("a",{background:"linear-gradient(135deg,"+C.grn+",#059669)",color:"#fff",borderRadius:"9px",padding:"12px",fontSize:"13px",fontWeight:"800",textDecoration:"none",textAlign:"center",display:"block",marginBottom:"8px"},null,{href:"sms:"+(inv.phone||"")+"?body="+encodeURIComponent(msg)});
+  a1.textContent="📱 Send SMS";
+  a1.addEventListener("click",function(){S.sendInvoiceAlert=null;});
+  card.appendChild(a1);
+
+  var a2=h("a",{background:"#128C7E",color:"#fff",borderRadius:"9px",padding:"12px",fontSize:"13px",fontWeight:"800",textDecoration:"none",textAlign:"center",display:"block",marginBottom:"8px"},null,{href:"https://wa.me/"+(inv.phone||"").replace(/\D/g,"")+"?text="+encodeURIComponent(msg),target:"_blank"});
+  a2.textContent="💬 Send via WhatsApp";
+  a2.addEventListener("click",function(){S.sendInvoiceAlert=null;});
+  card.appendChild(a2);
+
+  var a3=h("a",{background:C.cyn,color:"#fff",borderRadius:"9px",padding:"12px",fontSize:"13px",fontWeight:"800",textDecoration:"none",textAlign:"center",display:"block"},null,{
+    href:"mailto:"+(inv.email||"")+"?subject="+encodeURIComponent("Invoice "+inv.number+" — Payment Confirmed")+"&body="+encodeURIComponent(msg)
+  });
+  a3.textContent="✉️ Send via Email";
+  a3.addEventListener("click",function(e){if(!inv.email){e.preventDefault();alert("Please enter the client's email address above first.");return;}S.sendInvoiceAlert=null;});
+  card.appendChild(a3);
+
+  ov.appendChild(card);
+  return ov;
+}
+
+
 function render(){
   var app=document.getElementById("app");
   app.innerHTML="";
@@ -2057,6 +2150,7 @@ function buildMain(){
   if(S.showInventory)wrap.appendChild(buildInventory());
   if(S.viewTechId)wrap.appendChild(buildTechProfile());
   if(S.showScanReview)wrap.appendChild(buildScanReview());
+  if(S.sendInvoiceAlert)wrap.appendChild(buildSendInvoiceAlert());
   if(S.reassignJobId)wrap.appendChild(buildReassignModal());
   return wrap;
 }
@@ -2702,6 +2796,7 @@ function buildNewJob(){
   }
   g.appendChild(tradeRefWrap);
   g.appendChild(fw("Client Contact","contact","Name"));g.appendChild(fw("Phone","phone","071 234 5678","tel"));
+  g.appendChild(fw("Client Email (optional)","email","client@email.com","email"));
   var aw=d({gridColumn:"1/-1"});aw.appendChild(fw("Address","address","Full street address"));g.appendChild(aw);
   var dw=d({gridColumn:"1/-1",marginBottom:"12px"});dw.appendChild(lbl("Description"));
   var dt=h("textarea",{background:"#07101f",border:"1px solid "+C.bdr,borderRadius:"8px",color:C.txt,padding:"10px 12px",fontSize:"14px",width:"100%",outline:"none",resize:"vertical",fontFamily:"inherit",minHeight:"70px"});
@@ -2731,13 +2826,13 @@ function buildNewJob(){
     if(!S.njForm.site||!S.njForm.town){alert("Please enter Site Name and Town.");return;}
     var cs=S.njSteps.filter(function(s){return s.text.trim();}).map(function(s,i){return {id:i+1,text:s.text.trim(),qty:s.qty||1,done:false};});
     var id="job_"+Date.now();
-    var job={id:id,site:S.njForm.site,type:S.njForm.type,town:S.njForm.town,tech:S.njForm.tech,contact:S.njForm.contact,phone:S.njForm.phone,address:S.njForm.address,description:S.njForm.description,priority:S.njForm.priority,
+    var job={id:id,site:S.njForm.site,type:S.njForm.type,town:S.njForm.town,tech:S.njForm.tech,contact:S.njForm.contact,phone:S.njForm.phone,email:S.njForm.email,address:S.njForm.address,description:S.njForm.description,priority:S.njForm.priority,
       status:"Pending",additionalWork:"",company:S.user.company,created:new Date().toLocaleString("en-ZA",{dateStyle:"short",timeStyle:"short"}),
       steps:cs.length?cs:[{id:1,text:"Complete job",qty:1,done:false}],
       trips:[{num:1,comments:"",materials:"",travelSec:0,siteSec:0,travelStart:null,siteStart:null,photosBefore:[],photosAfter:[],complete:false}],
       currentTrip:0,createdBy:S.user.name};
     db.ref("jobs/"+id).set(job).catch(function(){});S.jobs[id]=job;
-    S.njForm={site:"",type:"Installation",town:"",tech:"",contact:"",phone:"",address:"",description:"",priority:"Normal"};
+    S.njForm={site:"",type:"Installation",town:"",tech:"",contact:"",phone:"",email:"",address:"",description:"",priority:"Normal"};
     S.njSteps=[{id:1,text:"",qty:1}];S.page="main";render();
   },C.grn,"#fff",{fontSize:"14px"}));
   ar.appendChild(btn("Cancel",function(){S.page="main";render();},C.bdr,C.sft,{border:"1px solid "+C.bdr,fontSize:"14px"}));
