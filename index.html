@@ -544,7 +544,7 @@ function buildInvoices(){
 function buildInvoiceNew(){
   var j=S.invoiceJob;
   var wrap=d({padding:"16px",maxWidth:"720px",margin:"0 auto"});
-  var bk=btn("← Back",function(){S.page="invoices";S.invoiceJob=null;render();},"none",C.sft,{fontSize:"13px",padding:"6px 0",marginBottom:"10px"});
+  var bk=btn("← Back",function(){S.page="invoices";S.invoiceJob=null;S.invLines=null;S.invVat=null;render();},"none",C.sft,{fontSize:"13px",padding:"6px 0",marginBottom:"10px"});
   wrap.appendChild(bk);
   var t=d({fontSize:"20px",fontWeight:"900",marginBottom:"4px"});t.textContent="💰 New Invoice";
   wrap.appendChild(t);
@@ -553,53 +553,89 @@ function buildInvoiceNew(){
 
   if(!S.invLines){
     var currentTrip=(j.trips&&j.trips[j.currentTrip])||{};
-    var partLines=(currentTrip.partsUsed||[]).map(function(pu){return {desc:pu.name+" ("+pu.unit+")",qty:pu.qty,price:pu.price};});
-    S.invLines=partLines.length?partLines.concat([{desc:j.description||"Labour / Field service work",qty:1,price:0}]):[{desc:j.description||"Field service work",qty:1,price:0}];
+    var partLines=(currentTrip.partsUsed||[]).map(function(pu){return {desc:pu.name+" ("+pu.unit+")",type:"item",qty:pu.qty,price:pu.price};});
+    S.invLines=partLines.length?partLines.concat([{desc:j.description||"Labour / Field service work",type:"item",qty:1,price:0}]):[{desc:j.description||"Field service work",type:"item",qty:1,price:0}];
   }
+  if(!S.invVat)S.invVat={enabled:true,percent:15};
+
+  var LINE_TYPES={
+    item:{label:"Item",qtyLbl:"QTY",priceLbl:"PRICE (R)",qtyPh:"Qty"},
+    distance:{label:"Distance",qtyLbl:"KM",priceLbl:"RATE PER KM (R)",qtyPh:"km"},
+    time:{label:"Time",qtyLbl:"HOURS",priceLbl:"RATE PER HOUR (R)",qtyPh:"hrs"}
+  };
 
   // Line items
   var linesBox=d({marginBottom:"14px"});
   function renderLines(){
     linesBox.innerHTML="";
-    var lbl=d({fontSize:"12px",fontWeight:"700",color:C.sft,marginBottom:"8px"});lbl.textContent="LINE ITEMS";
+    var lbl=d({fontSize:"12px",fontWeight:"700",color:C.sft,marginBottom:"8px"});lbl.textContent="LINE ITEMS — CALCULATOR";
     linesBox.appendChild(lbl);
     S.invLines.forEach(function(line,i){
+      if(!line.type)line.type="item";
+      var lt=LINE_TYPES[line.type];
       var row=d({background:C.card,border:"1px solid "+C.bdr,borderRadius:"10px",padding:"10px",marginBottom:"8px"});
       var di=h("input",{width:"100%",background:C.bg,border:"1px solid "+C.bdr,borderRadius:"7px",color:C.txt,padding:"8px",fontSize:"13px",marginBottom:"6px"},null,{type:"text",value:line.desc,placeholder:"Description"});
       di.addEventListener("input",function(){S.invLines[i].desc=di.value;});
       row.appendChild(di);
+
+      var typeRow=d({marginBottom:"6px"});
+      typeRow.appendChild(sel(["Item","Distance","Time"],lt.label,function(v){
+        S.invLines[i].type=v.toLowerCase();renderLines();calcTotal();
+      },{fontSize:"12px",padding:"7px 10px"}));
+      row.appendChild(typeRow);
+
       var qpRow=d({display:"flex",gap:"8px",alignItems:"center"});
-      var qi=h("input",{width:"70px",background:C.bg,border:"1px solid "+C.bdr,borderRadius:"7px",color:C.txt,padding:"8px",fontSize:"13px"},null,{type:"number",value:line.qty,placeholder:"Qty"});
+      var qLbl=d({fontSize:"10px",color:C.mut,minWidth:"38px"});qLbl.textContent=lt.qtyLbl;
+      var qi=h("input",{width:"70px",background:C.bg,border:"1px solid "+C.bdr,borderRadius:"7px",color:C.txt,padding:"8px",fontSize:"13px"},null,{type:"number",value:line.qty,placeholder:lt.qtyPh});
       qi.addEventListener("input",function(){S.invLines[i].qty=parseFloat(qi.value)||0;calcTotal();});
-      var pi=h("input",{flex:"1",background:C.bg,border:"1px solid "+C.bdr,borderRadius:"7px",color:C.txt,padding:"8px",fontSize:"13px"},null,{type:"number",value:line.price,placeholder:"Price (R)"});
+      var pi=h("input",{flex:"1",background:C.bg,border:"1px solid "+C.bdr,borderRadius:"7px",color:C.txt,padding:"8px",fontSize:"13px"},null,{type:"number",value:line.price,placeholder:lt.priceLbl});
       pi.addEventListener("input",function(){S.invLines[i].price=parseFloat(pi.value)||0;calcTotal();});
-      qpRow.appendChild(t("Qty",{fontSize:"11px",color:C.mut}));qpRow.appendChild(qi);qpRow.appendChild(pi);
+      qpRow.appendChild(qLbl);qpRow.appendChild(qi);qpRow.appendChild(pi);
       if(S.invLines.length>1){
         var del=btn("✕",function(){S.invLines.splice(i,1);renderLines();calcTotal();},C.red+"22",C.red,{fontSize:"12px",padding:"8px 10px"});
         qpRow.appendChild(del);
       }
       row.appendChild(qpRow);
+      var lineTot=d({fontSize:"11px",color:C.cyn,fontWeight:"700",marginTop:"6px",textAlign:"right"});
+      lineTot.textContent="= R "+(line.qty*line.price).toFixed(2);
+      row.appendChild(lineTot);
       linesBox.appendChild(row);
     });
-    linesBox.appendChild(btn("+ Add Line Item",function(){S.invLines.push({desc:"",qty:1,price:0});renderLines();},C.cyn+"22",C.cyn,{fontSize:"12px",padding:"8px 14px",fontWeight:"700",marginTop:"4px"}));
+    linesBox.appendChild(btn("+ Add Line Item",function(){S.invLines.push({desc:"",type:"item",qty:1,price:0});renderLines();},C.cyn+"22",C.cyn,{fontSize:"12px",padding:"8px 14px",fontWeight:"700",marginTop:"4px"}));
   }
   wrap.appendChild(linesBox);
+
+  // VAT toggle
+  var vatBox=d({background:C.card,border:"1px solid "+C.bdr,borderRadius:"10px",padding:"12px",marginBottom:"14px",display:"flex",alignItems:"center",gap:"12px"});
+  var vatCheck=h("input",{width:"18px",height:"18px",cursor:"pointer"},null,{type:"checkbox"});
+  vatCheck.checked=S.invVat.enabled;
+  vatCheck.addEventListener("change",function(){S.invVat.enabled=vatCheck.checked;calcTotal();});
+  var vatLbl2=d({fontSize:"13px",fontWeight:"700",color:C.txt,flex:"1"});vatLbl2.textContent="Add VAT to this invoice";
+  var vatPctInput=h("input",{width:"70px",background:C.bg,border:"1px solid "+C.bdr,borderRadius:"7px",color:C.txt,padding:"7px",fontSize:"13px",textAlign:"center"},null,{type:"number",value:S.invVat.percent});
+  vatPctInput.addEventListener("input",function(){S.invVat.percent=parseFloat(vatPctInput.value)||0;calcTotal();});
+  var vatPctLbl=d({fontSize:"13px",color:C.mut});vatPctLbl.textContent="%";
+  vatBox.appendChild(vatCheck);vatBox.appendChild(vatLbl2);vatBox.appendChild(vatPctInput);vatBox.appendChild(vatPctLbl);
+  wrap.appendChild(vatBox);
 
   // Totals
   var totBox=d({background:C.panel,border:"1px solid "+C.bdr,borderRadius:"12px",padding:"14px",marginBottom:"14px"});
   var subRow=d({display:"flex",justifyContent:"space-between",marginBottom:"6px",fontSize:"13px",color:C.sft});
   var subL=d({});subL.textContent="Subtotal";var subV=d({});subRow.appendChild(subL);subRow.appendChild(subV);
   var vatRow=d({display:"flex",justifyContent:"space-between",marginBottom:"6px",fontSize:"13px",color:C.sft});
-  var vatL=d({});vatL.textContent="VAT (15%)";var vatV=d({});vatRow.appendChild(vatL);vatRow.appendChild(vatV);
+  var vatL=d({});var vatV=d({});vatRow.appendChild(vatL);vatRow.appendChild(vatV);
   var totRow=d({display:"flex",justifyContent:"space-between",fontSize:"18px",fontWeight:"900",color:C.cyn,borderTop:"1px solid "+C.bdr,paddingTop:"8px",marginTop:"8px"});
-  var totL=d({});totL.textContent="TOTAL";var totV=d({});totRow.appendChild(totL);totRow.appendChild(totV);
+  var totL=d({});totL.textContent="TOTAL DUE";var totV=d({});totRow.appendChild(totL);totRow.appendChild(totV);
   totBox.appendChild(subRow);totBox.appendChild(vatRow);totBox.appendChild(totRow);
   wrap.appendChild(totBox);
 
   function calcTotal(){
     var sub=S.invLines.reduce(function(a,l){return a+(l.qty*l.price);},0);
-    var vat=sub*0.15;var tot=sub+vat;
-    subV.textContent="R "+sub.toFixed(2);vatV.textContent="R "+vat.toFixed(2);totV.textContent="R "+tot.toFixed(2);
+    var vat=S.invVat.enabled?sub*(S.invVat.percent/100):0;
+    var tot=sub+vat;
+    subV.textContent="R "+sub.toFixed(2);
+    vatL.textContent=S.invVat.enabled?("+ "+S.invVat.percent+"% VAT"):"VAT (not applied)";
+    vatV.textContent=S.invVat.enabled?"R "+vat.toFixed(2):"—";
+    totV.textContent="R "+tot.toFixed(2);
     S._invTotals={sub:sub,vat:vat,tot:tot};
   }
   renderLines();calcTotal();
@@ -614,6 +650,7 @@ function buildInvoiceNew(){
       contact:j.contact||"",phone:j.phone||"",
       lines:JSON.parse(JSON.stringify(S.invLines)),
       subtotal:S._invTotals.sub,vat:S._invTotals.vat,total:S._invTotals.tot,
+      vatEnabled:S.invVat.enabled,vatPercent:S.invVat.percent,
       status:"Sent",date:issuedAt.toLocaleDateString("en-ZA"),
       dueDate:dueAt.toLocaleDateString("en-ZA"),company:S.user.company,
       job:{
@@ -632,7 +669,7 @@ function buildInvoiceNew(){
         })
       }
     };
-    S.invoices.push(inv);saveInvoice(inv);S.invLines=null;S.invoiceJob=null;S.viewInvoice=inv;S.page="invoice-view";render();
+    S.invoices.push(inv);saveInvoice(inv);S.invLines=null;S.invVat=null;S.invoiceJob=null;S.viewInvoice=inv;S.page="invoice-view";render();
   },C.org,"#fff",{width:"100%",fontSize:"15px",padding:"14px",fontWeight:"900"}));
   return wrap;
 }
@@ -719,9 +756,11 @@ function buildInvoiceView(){
   tbl.appendChild(thead);
   inv.lines.forEach(function(l){
     var r=d({display:"flex",padding:"10px",borderBottom:"1px solid #f0f0f0",fontSize:"12px"});
+    var unitSuffix=l.type==="distance"?"km":l.type==="time"?"hrs":"";
+    var priceSuffix=l.type==="distance"?"/km":l.type==="time"?"/hr":"";
     r.appendChild(d({flex:"1"},l.desc));
-    var q=d({},String(l.qty));q.style.width="50px";q.style.textAlign="center";
-    var p=d({},"R"+l.price.toFixed(2));p.style.width="80px";p.style.textAlign="right";
+    var q=d({},String(l.qty)+(unitSuffix?" "+unitSuffix:""));q.style.width="60px";q.style.textAlign="center";
+    var p=d({},"R"+l.price.toFixed(2)+priceSuffix);p.style.width="90px";p.style.textAlign="right";
     var t=d({},"R"+(l.qty*l.price).toFixed(2));t.style.width="80px";t.style.textAlign="right";t.style.fontWeight="700";
     r.appendChild(q);r.appendChild(p);r.appendChild(t);
     tbl.appendChild(r);
@@ -736,8 +775,10 @@ function buildInvoiceView(){
     return r;
   }
   totWrap.appendChild(totLine("Subtotal",inv.subtotal));
-  totWrap.appendChild(totLine("VAT (15%)",inv.vat));
-  totWrap.appendChild(totLine("TOTAL",inv.total,true));
+  if(inv.vatEnabled!==false){
+    totWrap.appendChild(totLine("+ "+(inv.vatPercent!=null?inv.vatPercent:15)+"% VAT",inv.vat));
+  }
+  totWrap.appendChild(totLine("TOTAL DUE",inv.total,true));
   paper.appendChild(totWrap);
 
   // ── JOB INFORMATION GRID (mirrors job card) ──
