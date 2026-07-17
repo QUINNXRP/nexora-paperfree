@@ -229,7 +229,7 @@ var S={
   njForm:{site:"",type:"Installation",town:"",tech:"",contact:"",phone:"",email:"",address:"",description:"",priority:"Normal"},
   njSteps:[{id:1,text:"",qty:1}],
   tipIdx:0,tipTimer:null,loadProg:0,loadTimer:null,yLogo:"",stampMode:false,
-  showCompanySettings:false,reassignJobId:null,showInventory:false,partsUsed:[],viewTechId:null,scanning:false,scanProgress:0,scanLines:null,showScanReview:false,sendInvoiceAlert:null,
+  showCompanySettings:false,reassignJobId:null,showInventory:false,partsUsed:[],viewTechId:null,scanning:false,scanProgress:0,scanLines:null,showScanReview:false,sendInvoiceAlert:null,printGate:false,
   companyInventory:{},
   companyProfiles:{
     "Yantek Industries":{address:"31 Thora Crescent, Wynberg, Sandton, Johannesburg, 2191",phone:"010 020 2960",email:"info@yantek.co.za",vat:"4400127447",logo:""},
@@ -955,7 +955,7 @@ function buildInvoiceView(){
   }
   wrap.appendChild(acts);
   // Print button
-  wrap.appendChild(btn("🖨️ Print / Download PDF",function(){window.print();},C.pur+"22",C.purL,{width:"100%",fontSize:"13px",padding:"12px",fontWeight:"700",marginTop:"10px"}));
+  wrap.appendChild(btn("🖨️ Print / Download PDF",function(){S.printGate=true;render();},C.pur+"22",C.purL,{width:"100%",fontSize:"13px",padding:"12px",fontWeight:"700",marginTop:"10px"}));
   return wrap;
 }
 
@@ -2057,6 +2057,45 @@ function buildATWFooterBadge(){
 }
 
 
+
+// ══════════════════════════════════════════════════════════
+// ── PRINT REFLECTION GATE — nudge toward staying digital ──
+// ══════════════════════════════════════════════════════════
+function buildPrintGateModal(){
+  var ov=d({position:"fixed",inset:"0",background:"#000c",zIndex:"120",display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"});
+  var card=d({background:C.card,borderRadius:"18px",padding:"24px",width:"100%",maxWidth:"440px",border:"1px solid "+C.grn+"44",maxHeight:"88vh",overflowY:"auto"});
+
+  var icon=d({fontSize:"36px",textAlign:"center",marginBottom:"8px"});icon.textContent="🌳";
+  card.appendChild(icon);
+  var hd=d({fontSize:"17px",fontWeight:"800",textAlign:"center",marginBottom:"6px"});hd.textContent="Before you print...";
+  var sub=d({fontSize:"12px",color:C.mut,textAlign:"center",marginBottom:"18px"});sub.textContent="Just three quick questions.";
+  card.appendChild(hd);card.appendChild(sub);
+
+  function q(num,text,color){
+    var box=d({background:"#07101f",border:"1px solid "+C.bdr,borderRadius:"10px",padding:"12px 14px",marginBottom:"12px"});
+    var t=d({fontSize:"13px",color:C.txt,lineHeight:"1.6"});t.innerHTML="<b style='color:"+(color||C.org)+"'>"+num+".</b> "+text;
+    box.appendChild(t);return box;
+  }
+  card.appendChild(q("1","Do you understand that printing this goes against everything NEXORA — and A Thousand Words — was built for?"));
+  card.appendChild(q("2","Have you genuinely explored every other option before reaching for print?"));
+  card.appendChild(q("3","Before you decide, please take 3–5 minutes to watch the short film on the A Thousand Words website. If you still feel you need to print after that, go right ahead.",C.grn));
+
+  card.appendChild(btn("🌳 Watch the film first",function(){window.open("https://athousandwordssavetrees.org","_blank");},"linear-gradient(135deg,"+C.grn+",#059669)","#fff",{width:"100%",fontSize:"14px",padding:"13px",fontWeight:"800",marginBottom:"10px"}));
+  card.appendChild(btn("✕ Cancel — I'll stay digital",function(){S.printGate=false;render();},C.card,C.txt,{border:"1px solid "+C.bdr,width:"100%",fontSize:"13px",padding:"12px",fontWeight:"700",marginBottom:"12px"}));
+
+  var divider=d({textAlign:"center",fontSize:"10px",color:C.mut,marginBottom:"10px"});divider.textContent="— or —";
+  card.appendChild(divider);
+
+  card.appendChild(btn("I understand — print anyway",function(){
+    S.printGate=false;render();
+    setTimeout(function(){window.print();},60);
+  },"transparent",C.mut,{border:"1px solid "+C.bdr,width:"100%",fontSize:"11px",padding:"9px",fontWeight:"600"}));
+
+  ov.appendChild(card);
+  return ov;
+}
+
+
 function render(){
   var app=document.getElementById("app");
   app.innerHTML="";
@@ -2181,6 +2220,7 @@ function buildMain(){
   if(S.viewTechId)wrap.appendChild(buildTechProfile());
   if(S.showScanReview)wrap.appendChild(buildScanReview());
   if(S.sendInvoiceAlert)wrap.appendChild(buildSendInvoiceAlert());
+  if(S.printGate)wrap.appendChild(buildPrintGateModal());
   if(S.reassignJobId)wrap.appendChild(buildReassignModal());
   return wrap;
 }
@@ -2790,7 +2830,7 @@ function buildReport(job){
     bb.appendChild(btn(S.stampMode?"✅ Done Placing":"📍 Move Stamp",function(){S.stampMode=!S.stampMode;render();},S.stampMode?C.grn:C.cyn));
     bb.appendChild(btn("🗑️ Remove Stamp",function(){var u=Object.assign({},job,{stamped:false});saveJob(u);S.selJob=u;S.stampMode=false;render();},C.red+"22",C.red,{border:"1px solid "+C.red+"44"}));
   }
-  bb.appendChild(btn("🖨️ Print A4",function(){window.print();},C.pur));
+  bb.appendChild(btn("🖨️ Print A4",function(){S.printGate=true;render();},C.pur));
   bb.appendChild(btn("📋 Copy",function(){navigator.clipboard&&navigator.clipboard.writeText(getRpt()).then(function(){alert("Copied!");});},C.cyn));
   bb.appendChild(btn("📤 Share",function(){var t=getRpt();if(navigator.share)navigator.share({title:"NEXORA Job Report",text:t}).catch(function(){});else window.open("https://wa.me/?text="+encodeURIComponent(t),"_blank");},C.grn));
   bb.appendChild(btn("📧 Email",function(){window.open("mailto:?subject="+encodeURIComponent("Job Report — "+job.site)+"&body="+encodeURIComponent(getRpt()),"_blank");},C.org));
