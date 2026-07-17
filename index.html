@@ -2859,12 +2859,17 @@ function buildUsers(){
   var tp=d({display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"});
   var hd=d({fontSize:"16px",fontWeight:"800"});hd.textContent="👥 User Management";
   tp.appendChild(hd);tp.appendChild(btn("✕",function(){S.showUsers=false;render();},C.bdr,C.sft,{border:"none",padding:"5px 10px"}));card.appendChild(tp);
-  var fn={name:"",username:"",password:"",team:"",trade:"",role:"technician"};
+  var fn={name:"",username:"",password:"",team:"",trade:"General",role:"technician"};
   var fg=d({background:"#07101f",borderRadius:"11px",padding:"13px",marginBottom:"14px",border:"1px solid "+C.bdr});
   var fl=d({fontSize:"12px",color:C.cyn,fontWeight:"700",textTransform:"uppercase",letterSpacing:"1px",marginBottom:"11px"});fl.textContent="➕ Add New User";fg.appendChild(fl);
   var gg=d({display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"});
   function ff(lbl2,key,ph){var w=d({marginBottom:"10px"});var l=d({fontSize:"11px",color:C.sft,marginBottom:"4px",fontWeight:"700",textTransform:"uppercase",letterSpacing:"1px"});l.textContent=lbl2;w.appendChild(l);w.appendChild(inp(ph,fn[key],function(v){fn[key]=v;}));return w;}
-  gg.appendChild(ff("Full Name *","name","John Smith"));gg.appendChild(ff("Team","team","Team Alpha"));gg.appendChild(ff("Trade / Specialty","trade","e.g. Locksmith, Electrician, Signage"));gg.appendChild(ff("Username *","username","john.smith"));
+  gg.appendChild(ff("Full Name *","name","John Smith"));gg.appendChild(ff("Team","team","Team Alpha"));
+  var tradeWrap=d({marginBottom:"10px"});var tradeLbl=d({fontSize:"11px",color:C.sft,marginBottom:"4px",fontWeight:"700",textTransform:"uppercase",letterSpacing:"1px"});tradeLbl.textContent="Trade / Department";
+  tradeWrap.appendChild(tradeLbl);
+  tradeWrap.appendChild(sel(["General","Security","Maintenance","Electrical","Workshop","Drivers","Locksmiths","IT Department","Plumbers","Refrigeration","Carpenters","Builders"],fn.trade||"General",function(v){fn.trade=v;}));
+  gg.appendChild(tradeWrap);
+  gg.appendChild(ff("Username *","username","john.smith"));
   var pwBox=d({marginBottom:"10px"});var pwLbl=d({fontSize:"11px",color:C.sft,marginBottom:"4px",fontWeight:"700",textTransform:"uppercase",letterSpacing:"1px"});pwLbl.textContent="Password *";
   pwBox.appendChild(pwLbl);pwBox.appendChild(pwInput("Min 6 chars",fn.password,function(v){fn.password=v;}));gg.appendChild(pwBox);
   var rw=d({gridColumn:"1/-1",marginBottom:"10px"});var rl=d({fontSize:"11px",color:C.sft,marginBottom:"4px",fontWeight:"700",textTransform:"uppercase",letterSpacing:"1px"});rl.textContent="Role";
