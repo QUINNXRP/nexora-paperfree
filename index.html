@@ -2936,9 +2936,13 @@ function buildNewJob(){
       steps:cs.length?cs:[{id:1,text:"Complete job",qty:1,done:false}],
       trips:[{num:1,comments:"",materials:"",travelSec:0,siteSec:0,travelStart:null,siteStart:null,photosBefore:[],photosAfter:[],complete:false}],
       currentTrip:0,createdBy:S.user.name};
-    db.ref("jobs/"+id).set(job).catch(function(){});S.jobs[id]=job;
-    S.njForm={site:"",type:"Installation",town:"",tech:"",contact:"",phone:"",email:"",address:"",description:"",priority:"Normal"};
-    S.njSteps=[{id:1,text:"",qty:1}];S.page="main";render();
+    db.ref("jobs/"+id).set(job).then(function(){
+      S.jobs[id]=job;
+      S.njForm={site:"",type:"Installation",town:"",tech:"",contact:"",phone:"",email:"",address:"",description:"",priority:"Normal"};
+      S.njSteps=[{id:1,text:"",qty:1}];S.page="main";render();
+    }).catch(function(err){
+      alert("Job card was NOT saved: "+(err&&err.message?err.message:"unknown error")+"\n\nYour entries are still in the form — please try again.");
+    });
   },C.grn,"#fff",{fontSize:"14px"}));
   ar.appendChild(btn("Cancel",function(){S.page="main";render();},C.bdr,C.sft,{border:"1px solid "+C.bdr,fontSize:"14px"}));
   wrap.appendChild(ar);return wrap;
