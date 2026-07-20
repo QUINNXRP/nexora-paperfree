@@ -1882,13 +1882,38 @@ function buildTechProfile(){
 // ══════════════════════════════════════════════════════════
 var SCAN_FIELDS=[["ignore","Ignore"],["site","Site Name"],["town","Town"],["contact","Client Contact"],["phone","Phone"],["address","Address"],["description","Description"]];
 
+// Matches "<label><optional extra words>[: -]<value>" and lets us strip the label off.
+var OCR_LABEL_PATTERNS=[
+  ["phone",/^(cell|mobile|tel|telephone|phone|contact\s*number|number)\s*(no\.?|nr\.?)?\s*[:\-]\s*(.+)$/i],
+  ["site",/^(site|site\s*name|job\s*site|location|school|building|premises)\s*[:\-]\s*(.+)$/i],
+  ["town",/^(town|city|suburb|area)\s*[:\-]\s*(.+)$/i],
+  ["address",/^(address|street|physical\s*address)\s*[:\-]\s*(.+)$/i],
+  ["contact",/^(contact|client|client\s*name|customer|customer\s*name|name)\s*[:\-]\s*(.+)$/i]
+];
+
 function ocrGuessField(text){
+  // Phone number appearing anywhere on the line, regardless of label wording/OCR noise
   if(/(\+?27[\s-]?\d{9})|(\b0\d{2}[\s-]?\d{3}[\s-]?\d{4}\b)/.test(text))return "phone";
-  if(/^(site|location|school|building)[:\s]/i.test(text))return "site";
-  if(/^(town|city|suburb)[:\s]/i.test(text))return "town";
-  if(/^(address|street)[:\s]/i.test(text))return "address";
-  if(/^(contact|client|name)[:\s]/i.test(text))return "contact";
+  for(var i=0;i<OCR_LABEL_PATTERNS.length;i++){
+    if(OCR_LABEL_PATTERNS[i][1].test(text))return OCR_LABEL_PATTERNS[i][0];
+  }
   return "description";
+}
+
+// Strips a recognized label prefix off a line, leaving just the value.
+// Falls back to the raw phone regex match, then to the original text unchanged.
+function ocrStripLabel(text,field){
+  if(field==="phone"){
+    var m=text.match(/(\+?27[\s-]?\d{9})|(\b0\d{2}[\s-]?\d{3}[\s-]?\d{4}\b)/);
+    if(m)return m[0].trim();
+  }
+  for(var i=0;i<OCR_LABEL_PATTERNS.length;i++){
+    if(OCR_LABEL_PATTERNS[i][0]===field){
+      var mm=text.match(OCR_LABEL_PATTERNS[i][1]);
+      if(mm&&mm[mm.length-1])return mm[mm.length-1].trim();
+    }
+  }
+  return text.trim();
 }
 
 function runJobCardScan(file){
@@ -1938,7 +1963,7 @@ function buildScanReview(){
     (S.scanLines||[]).forEach(function(ln){
       if(ln.assign==="ignore")return;
       if(ln.assign==="description")descLines.push(ln.text);
-      else S.njForm[ln.assign]=ln.text;
+      else S.njForm[ln.assign]=ocrStripLabel(ln.text,ln.assign);
     });
     if(descLines.length){
       S.njForm.description=(S.njForm.description?S.njForm.description+"\n":"")+descLines.join("\n");
