@@ -2419,6 +2419,12 @@ function buildDetail(){
     var mh=d({fontSize:"16px",fontWeight:"800",color:C.grn,marginBottom:"4px"});mh.textContent="📱 Client SMS Ready!";
     var ms=d({fontSize:"12px",color:C.mut,marginBottom:"12px"});ms.textContent="To: "+S.smsAlert.name+" · "+S.smsAlert.phone;
     mc.appendChild(mh);mc.appendChild(ms);
+    if(S.smsAlert.address||S.smsAlert.town){
+      var navBtn=btn("🗺️ Navigate to "+(S.smsAlert.site||"site"),function(){
+        window.open("https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent((S.smsAlert.address||"")+", "+(S.smsAlert.town||""))+"&travelmode=driving","_blank");
+      },C.cyn,"#fff",{width:"100%",fontSize:"13px",padding:"11px",fontWeight:"700",marginBottom:"10px"});
+      mc.appendChild(navBtn);
+    }
     var el=d({fontSize:"11px",color:C.cyn,fontWeight:"700",marginBottom:"6px"});el.textContent="🗺️ Adjust ETA";mc.appendChild(el);
     var eb=d({display:"flex",gap:"5px",flexWrap:"wrap",marginBottom:"12px"});
     [10,15,20,25,30,45,60,90].forEach(function(m){
@@ -2490,13 +2496,12 @@ function buildDetail(){
   // Action buttons
   var ab=d({display:"flex",gap:"8px",marginBottom:"12px",flexWrap:"wrap"});
   if(job.status==="Pending"||job.status==="Dispatched"){
-    ab.appendChild(btn("🚗 Start Travelling + Navigate",function(){
+    ab.appendChild(btn("🚗 Start Travelling",function(){
       var trips=job.trips.slice();trips[job.currentTrip]=Object.assign({},trip,{travelStart:new Date().toLocaleTimeString()});
       var claim=job.claimedBy?{}:{claimedBy:S.user.name,claimedById:S.user.id,claimedAt:new Date().toLocaleString()};
       var u=Object.assign({},job,{status:"Travelling",trips:trips},claim);saveJob(u);S.selJob=u;
       if(!job.claimedBy){pushNotification(job.tech,"👤 Job Claimed",S.user.name+" picked up "+(job.site||"a job")+".",job.id);}
-      window.open("https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent((job.address||"")+", "+(job.town||""))+"&travelmode=driving","_blank");
-      S.smsAlert={msg:buildSMS(job,S.eta),phone:job.phone,name:job.contact};render();
+      S.smsAlert={msg:buildSMS(job,S.eta),phone:job.phone,name:job.contact,address:job.address,town:job.town,site:job.site};render();
     },C.org,"#fff",{fontSize:"13px"}));
   }
   if(job.address){ab.appendChild(btn("🗺️ Maps",function(){window.open("https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent((job.address||"")+", "+(job.town||""))+"&travelmode=driving","_blank");},C.bdr,C.cyn,{border:"1px solid "+C.cyn+"44",fontSize:"12px",padding:"8px 12px"}));}
