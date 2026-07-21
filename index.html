@@ -1655,7 +1655,7 @@ function buildSignup(){
   var cs=d({fontSize:"12px",color:C.mut,marginBottom:"20px",lineHeight:"1.6"});cs.textContent="NEXORA is invite-only. Tell us a bit about your business and our team will be in touch by email with your login details.";
   card.appendChild(ch);card.appendChild(cs);
 
-  if(!S.reqForm)S.reqForm={company:"",regType:"private",vat:"",name:"",email:"",isOwner:"yes",staffCount:"",heardFrom:""};
+  if(!S.reqForm)S.reqForm={company:"",regType:"private",vat:"",name:"",email:"",isOwner:"yes",staffCount:"",heardFrom:"",skills:"",suggestions:""};
   var form=S.reqForm;
   var err=d({background:"#ef444422",border:"1px solid #ef444455",borderRadius:"8px",padding:"9px 12px",fontSize:"12px",color:C.red,marginBottom:"12px",display:"none"});
 
@@ -1721,6 +1721,28 @@ function buildSignup(){
   hearBox.appendChild(sel(["Select...","Referral / Friend","Google Search","Social Media","A Thousand Words Foundation","Existing NEXORA User","Other"],form.heardFrom||"Select...",function(v){form.heardFrom=v;}));
   card.appendChild(hearBox);
 
+  // Skills & Expertise
+  var skillsBox=d({marginBottom:"13px"});
+  skillsBox.appendChild(fieldLabel("🎯 Skills & Expertise (optional)"));
+  var skillsHint=d({fontSize:"10px",color:C.mut,marginBottom:"6px"});skillsHint.textContent="Design, coding, marketing, video, writing, sales — anything you think could help NEXORA grow.";
+  skillsBox.appendChild(skillsHint);
+  var skillsTa=h("textarea",{width:"100%",background:C.bg,border:"1px solid "+C.bdr,borderRadius:"8px",color:C.txt,padding:"10px 12px",fontSize:"13px",outline:"none",fontFamily:"inherit",minHeight:"70px",resize:"vertical"},null,{placeholder:"e.g. I'm a graphic designer, or I have 5 years in sales..."});
+  skillsTa.value=form.skills||"";
+  skillsTa.addEventListener("input",function(){form.skills=skillsTa.value;});
+  skillsBox.appendChild(skillsTa);
+  card.appendChild(skillsBox);
+
+  // Suggestions
+  var suggBox=d({marginBottom:"13px"});
+  suggBox.appendChild(fieldLabel("💡 Suggestions (optional)"));
+  var suggHint=d({fontSize:"10px",color:C.mut,marginBottom:"6px"});suggHint.textContent="Any ideas for NEXORA or A Thousand Words? We genuinely read every one.";
+  suggBox.appendChild(suggHint);
+  var suggTa=h("textarea",{width:"100%",background:C.bg,border:"1px solid "+C.bdr,borderRadius:"8px",color:C.txt,padding:"10px 12px",fontSize:"13px",outline:"none",fontFamily:"inherit",minHeight:"70px",resize:"vertical"},null,{placeholder:"Anything on your mind..."});
+  suggTa.value=form.suggestions||"";
+  suggTa.addEventListener("input",function(){form.suggestions=suggTa.value;});
+  suggBox.appendChild(suggTa);
+  card.appendChild(suggBox);
+
   card.appendChild(err);
 
   function doRequest(){
@@ -1732,6 +1754,7 @@ function buildSignup(){
       id:reqId,company:form.company,regType:form.regType,vat:form.vat||"",
       name:form.name,email:form.email,isOwner:form.isOwner,
       staffCount:form.staffCount,heardFrom:form.heardFrom,
+      skills:form.skills||"",suggestions:form.suggestions||"",
       status:"pending",submittedAt:new Date().toLocaleString()
     };
     if(db){try{db.ref("accessRequests/"+reqId).set(reqData);}catch(e){}}
@@ -2216,6 +2239,16 @@ function buildAccessRequests(){
       var line=d({fontSize:"11px",color:C.sft,marginBottom:"3px"});line.textContent=l;
       box.appendChild(line);
     });
+    if(r.skills){
+      var skillsRow=d({fontSize:"11px",color:C.grn,marginTop:"6px",padding:"6px 8px",background:C.grn+"11",borderRadius:"6px"});
+      skillsRow.textContent="🎯 Skills: "+r.skills;
+      box.appendChild(skillsRow);
+    }
+    if(r.suggestions){
+      var suggRow=d({fontSize:"11px",color:C.cyn,marginTop:"6px",padding:"6px 8px",background:C.cyn+"11",borderRadius:"6px"});
+      suggRow.textContent="💡 Suggestion: "+r.suggestions;
+      box.appendChild(suggRow);
+    }
     if(r.status==="pending"){
       var acts=d({display:"flex",gap:"8px",marginTop:"10px"});
       acts.appendChild(btn("✅ Approve",function(){
