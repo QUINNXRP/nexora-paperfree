@@ -3309,7 +3309,10 @@ function buildUsers(){
   inviteBox.appendChild(btn("✉️ Send Request to NEXORA",function(){
     if(!iv.name||!iv.email){alert("Please fill in their name and email first.");return;}
     var body="Hi NEXORA Team,\n\nPlease could you add a new team member to our account:\n\nCompany: "+S.user.company+"\nRequested by: "+S.user.name+" ("+S.user.username+")\n\nNew person's name: "+iv.name+"\nNew person's email: "+iv.email+"\nRole requested: "+iv.role+"\n\nThank you!";
-    window.open("mailto:support@nexorapaperfree.org?subject="+encodeURIComponent("New "+iv.role+" for "+S.user.company)+"&body="+encodeURIComponent(body),"_blank");
+    var mailLink=h("a",{display:"none"},null,{href:"mailto:support@nexorapaperfree.org?subject="+encodeURIComponent("New "+iv.role+" for "+S.user.company)+"&body="+encodeURIComponent(body)});
+    document.body.appendChild(mailLink);
+    mailLink.click();
+    setTimeout(function(){document.body.removeChild(mailLink);},500);
   },C.cyn,"#fff",{width:"100%",fontSize:"12px",padding:"10px",fontWeight:"700"}));
   card.appendChild(inviteBox);
 
