@@ -237,7 +237,7 @@ var S={
   njSteps:[{id:1,text:"",qty:1}],
   tipIdx:0,tipTimer:null,loadProg:0,loadTimer:null,yLogo:"",stampMode:false,
   showCompanySettings:false,reassignJobId:null,showInventory:false,partsUsed:[],viewTechId:null,scanning:false,scanProgress:0,scanLines:null,showScanReview:false,sendInvoiceAlert:null,printGate:false,
-  companyInventory:{},
+  companyInventory:{},accessRequests:[],showAccessRequests:false,
   companyProfiles:{
     "Yantek Industries":{address:"31 Thora Crescent, Wynberg, Sandton, Johannesburg, 2191",phone:"010 020 2960",email:"info@yantek.co.za",vat:"4400127447",logo:""},
     "NEXORA":{address:"",phone:"",email:"support@nexorapaperfree.org",vat:"",logo:""}
@@ -374,6 +374,11 @@ function firebaseOn(){
   db.ref("invoices").on("value",function(snap){
     var remote=snap.val()||{};
     S.invoices=Object.keys(remote).map(function(k){return remote[k];});
+    render();
+  },function(){});
+  db.ref("accessRequests").on("value",function(snap){
+    var remote=snap.val()||{};
+    S.accessRequests=Object.keys(remote).map(function(k){return remote[k];});
     render();
   },function(){});
 }
@@ -1600,7 +1605,7 @@ function buildAboutNexora(){
 
   // ── CTA back to login / signup ──
   var cta=d({textAlign:"center",display:"flex",gap:"12px",justifyContent:"center",flexWrap:"wrap"});
-  cta.appendChild(btn("✨ Create a Free Account",function(){try{localStorage.setItem("nexora_visited","1");}catch(e){}S.page="signup";render();window.scrollTo(0,0);},"linear-gradient(135deg,"+C.grn+",#0d9668)","#fff",{fontSize:"14px",padding:"14px 26px",fontWeight:"800",borderRadius:"12px"}));
+  cta.appendChild(btn("📨 Request Access",function(){try{localStorage.setItem("nexora_visited","1");}catch(e){}S.page="signup";render();window.scrollTo(0,0);},"linear-gradient(135deg,"+C.grn+",#0d9668)","#fff",{fontSize:"14px",padding:"14px 26px",fontWeight:"800",borderRadius:"12px"}));
   cta.appendChild(btn("Sign In →",function(){try{localStorage.setItem("nexora_visited","1");}catch(e){}S.page="login";render();window.scrollTo(0,0);},"transparent",C.txt,{border:"1px solid "+C.bdrG,fontSize:"14px",padding:"14px 26px",fontWeight:"700",borderRadius:"12px"}));
   inner.appendChild(cta);
 
@@ -1634,61 +1639,104 @@ function buildSignup(){
   wrap.appendChild(d({position:"absolute",top:"20%",left:"10%",width:"300px",height:"300px",background:C.grn+"08",borderRadius:"50%",filter:"blur(70px)"}));
   wrap.appendChild(d({position:"absolute",bottom:"20%",right:"10%",width:"260px",height:"260px",background:C.cyn+"08",borderRadius:"50%",filter:"blur(60px)"}));
 
-  var lw=d({display:"flex",flexDirection:"column",alignItems:"center",marginBottom:"24px",zIndex:"1"});
+  var lw=d({display:"flex",flexDirection:"column",alignItems:"center",marginBottom:"22px",zIndex:"1"});
   lw.appendChild(logo(56));
   var nx=d({fontSize:"22px",fontWeight:"900",color:C.txt,letterSpacing:"3px",marginTop:"12px"});nx.textContent="NEXORA";
-  var tg=d({fontSize:"12px",color:C.grn,marginTop:"6px",fontWeight:"700"});tg.textContent="✨ Start free — no card required";
+  var tg=d({fontSize:"12px",color:C.grn,marginTop:"6px",fontWeight:"700"});tg.textContent="🔒 Invite-only access";
   lw.appendChild(nx);lw.appendChild(tg);wrap.appendChild(lw);
 
-  var card=d({background:C.card,borderRadius:"20px",padding:"28px",width:"100%",maxWidth:"380px",border:"1px solid "+C.bdrG,zIndex:"1",maxHeight:"78vh",overflowY:"auto"});
-  var ch=d({fontSize:"17px",fontWeight:"800",marginBottom:"4px"});ch.textContent="Create your free account";
-  var cs=d({fontSize:"12px",color:C.mut,marginBottom:"20px"});cs.textContent="Set up your company and go paperless today.";
+  var card=d({background:C.card,borderRadius:"20px",padding:"28px",width:"100%",maxWidth:"400px",border:"1px solid "+C.bdrG,zIndex:"1",maxHeight:"80vh",overflowY:"auto"});
+  var ch=d({fontSize:"17px",fontWeight:"800",marginBottom:"4px"});ch.textContent="Request Access to NEXORA";
+  var cs=d({fontSize:"12px",color:C.mut,marginBottom:"20px",lineHeight:"1.6"});cs.textContent="NEXORA is invite-only. Tell us a bit about your business and our team will be in touch by email with your login details.";
   card.appendChild(ch);card.appendChild(cs);
 
-  var form={name:"",company:"",username:"",email:"",password:"",confirm:""};
+  if(!S.reqForm)S.reqForm={company:"",regType:"private",vat:"",name:"",email:"",isOwner:"yes",staffCount:"",heardFrom:""};
+  var form=S.reqForm;
   var err=d({background:"#ef444422",border:"1px solid #ef444455",borderRadius:"8px",padding:"9px 12px",fontSize:"12px",color:C.red,marginBottom:"12px",display:"none"});
 
-  function field(label,key,type){
+  function fieldLabel(label){
+    var l=d({fontSize:"11px",fontWeight:"700",color:C.sft,marginBottom:"5px",textTransform:"uppercase",letterSpacing:"0.5px"});l.textContent=label;
+    return l;
+  }
+  function field(label,key,placeholder,type){
     var box=d({marginBottom:"13px"});
-    var lbl=d({fontSize:"11px",fontWeight:"700",color:C.sft,marginBottom:"5px",textTransform:"uppercase",letterSpacing:"0.5px"});lbl.textContent=label;
-    var input=type==="password"?pwInput(label,"",function(v){form[key]=v;err.style.display="none";}):inp(label,"",function(v){form[key]=v;err.style.display="none";},type||"text");
-    box.appendChild(lbl);box.appendChild(input);
+    box.appendChild(fieldLabel(label));
+    box.appendChild(inp(placeholder,form[key],function(v){form[key]=v;err.style.display="none";},type||"text"));
     return box;
   }
-  card.appendChild(field("Your Full Name","name"));
-  card.appendChild(field("Company Name","company"));
-  card.appendChild(field("Email","email","email"));
-  card.appendChild(field("Choose a Username","username"));
-  card.appendChild(field("Choose a Password (min 6 chars)","password","password"));
-  card.appendChild(field("Confirm Password","confirm","password"));
+
+  card.appendChild(field("Company Name *","company","e.g. Yantek Industries"));
+
+  // Registered company vs Private individual toggle
+  var regBox=d({marginBottom:"13px"});
+  regBox.appendChild(fieldLabel("Business Type"));
+  var regTabs=d({display:"flex",gap:"8px",marginBottom:"8px"});
+  var regBtnCompany=btn("🏢 Registered Company",function(){form.regType="company";renderReg();},form.regType==="company"?C.grn:C.bdr,form.regType==="company"?"#fff":C.sft,{flex:"1",fontSize:"11px",padding:"9px 6px",fontWeight:"700"});
+  var regBtnPrivate=btn("👤 Private Individual",function(){form.regType="private";renderReg();},form.regType==="private"?C.grn:C.bdr,form.regType==="private"?"#fff":C.sft,{flex:"1",fontSize:"11px",padding:"9px 6px",fontWeight:"700"});
+  regTabs.appendChild(regBtnCompany);regTabs.appendChild(regBtnPrivate);
+  regBox.appendChild(regTabs);
+  var vatBox=d({});
+  regBox.appendChild(vatBox);
+  card.appendChild(regBox);
+
+  function renderReg(){
+    regBtnCompany.style.background=form.regType==="company"?C.grn:C.bdr;
+    regBtnCompany.style.color=form.regType==="company"?"#fff":C.sft;
+    regBtnPrivate.style.background=form.regType==="private"?C.grn:C.bdr;
+    regBtnPrivate.style.color=form.regType==="private"?"#fff":C.sft;
+    vatBox.innerHTML="";
+    if(form.regType==="company"){
+      vatBox.appendChild(fieldLabel("Tax / VAT Registration Number (optional)"));
+      vatBox.appendChild(inp("e.g. 4123456789",form.vat,function(v){form.vat=v;}));
+    }
+  }
+  renderReg();
+
+  card.appendChild(field("Your Full Name & Surname *","name","John Smith"));
+  card.appendChild(field("Your Email *","email","you@company.com","email"));
+
+  // Is Owner
+  var ownBox=d({marginBottom:"13px"});
+  ownBox.appendChild(fieldLabel("Are You the Owner? *"));
+  var ownTabs=d({display:"flex",gap:"8px"});
+  var ownYes=btn("Yes",function(){form.isOwner="yes";renderOwner();},form.isOwner==="yes"?C.grn:C.bdr,form.isOwner==="yes"?"#fff":C.sft,{flex:"1",fontSize:"12px",padding:"9px",fontWeight:"700"});
+  var ownNo=btn("No",function(){form.isOwner="no";renderOwner();},form.isOwner==="no"?C.grn:C.bdr,form.isOwner==="no"?"#fff":C.sft,{flex:"1",fontSize:"12px",padding:"9px",fontWeight:"700"});
+  ownTabs.appendChild(ownYes);ownTabs.appendChild(ownNo);
+  ownBox.appendChild(ownTabs);
+  card.appendChild(ownBox);
+  function renderOwner(){
+    ownYes.style.background=form.isOwner==="yes"?C.grn:C.bdr;ownYes.style.color=form.isOwner==="yes"?"#fff":C.sft;
+    ownNo.style.background=form.isOwner==="no"?C.grn:C.bdr;ownNo.style.color=form.isOwner==="no"?"#fff":C.sft;
+  }
+
+  card.appendChild(field("How Many Staff Members? *","staffCount","e.g. 12","number"));
+
+  var hearBox=d({marginBottom:"13px"});
+  hearBox.appendChild(fieldLabel("How Did You Hear About Us? *"));
+  hearBox.appendChild(sel(["Select...","Referral / Friend","Google Search","Social Media","A Thousand Words Foundation","Existing NEXORA User","Other"],form.heardFrom||"Select...",function(v){form.heardFrom=v;}));
+  card.appendChild(hearBox);
+
   card.appendChild(err);
 
-  function doSignup(){
-    if(!form.name||!form.company||!form.username||!form.password){
-      err.textContent="Please fill in your name, company, username and password.";err.style.display="block";return;
+  function doRequest(){
+    if(!form.company||!form.name||!form.email||!form.staffCount||!form.heardFrom||form.heardFrom==="Select..."){
+      err.textContent="Please fill in all required fields marked *.";err.style.display="block";return;
     }
-    if(form.password.length<6){
-      err.textContent="Password must be at least 6 characters.";err.style.display="block";return;
-    }
-    if(form.password!==form.confirm){
-      err.textContent="Passwords don't match.";err.style.display="block";return;
-    }
-    if(S.users.some(function(u){return u.username.toLowerCase()===form.username.toLowerCase();})){
-      err.textContent="That username is already taken. Please choose another.";err.style.display="block";return;
-    }
-    var newUser={
-      id:uidC(),name:form.name,username:form.username,password:form.password,
-      email:form.email,role:"admin",company:form.company,team:"Admin"
+    var reqId=uidC();
+    var reqData={
+      id:reqId,company:form.company,regType:form.regType,vat:form.vat||"",
+      name:form.name,email:form.email,isOwner:form.isOwner,
+      staffCount:form.staffCount,heardFrom:form.heardFrom,
+      status:"pending",submittedAt:new Date().toLocaleString()
     };
-    S.users.push(newUser);
-    if(db){try{db.ref("users/"+newUser.id).set(newUser);}catch(e){}}
+    if(db){try{db.ref("accessRequests/"+reqId).set(reqData);}catch(e){}}
     try{localStorage.setItem("nexora_visited","1");}catch(e){}
-    S.user=newUser;S.vOp=newUser.name;S.page="main";firebaseOn();
-    try{treeFactToastCustom("🎉 Welcome to NEXORA!","Your free account is ready. Let's set up your company profile next.");}catch(e){}
+    S.reqForm=null;
+    S.page="requestSent";
     render();
   }
 
-  card.appendChild(btn("Create Free Account →",doSignup,"linear-gradient(135deg,"+C.grn+",#0d9668)","#fff",{width:"100%",fontSize:"14px",borderRadius:"10px",padding:"13px",fontWeight:"800",marginTop:"4px"}));
+  card.appendChild(btn("📨 Send Request",doRequest,"linear-gradient(135deg,"+C.grn+",#0d9668)","#fff",{width:"100%",fontSize:"14px",borderRadius:"10px",padding:"13px",fontWeight:"800",marginTop:"4px"}));
 
   var backLink=d({textAlign:"center",marginTop:"16px"});
   backLink.appendChild(btn("← Already have an account? Sign in",function(){S.page="login";render();},"transparent",C.mut,{border:"none",fontSize:"12px",padding:"6px"}));
@@ -1697,6 +1745,18 @@ function buildSignup(){
   wrap.appendChild(card);
   return wrap;
 }
+
+function buildRequestSent(){
+  var wrap=d({minHeight:"100vh",background:C.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px",textAlign:"center"});
+  var icon=d({fontSize:"56px",marginBottom:"16px"});icon.textContent="📨";
+  var hd=d({fontSize:"20px",fontWeight:"800",marginBottom:"10px"});hd.textContent="Request Sent!";
+  var msg=d({fontSize:"14px",color:C.sft,maxWidth:"360px",lineHeight:"1.7",marginBottom:"26px"});
+  msg.textContent="Thank you! Our team will review your details and email you within 24 hours with your login information.";
+  wrap.appendChild(icon);wrap.appendChild(hd);wrap.appendChild(msg);
+  wrap.appendChild(btn("← Back to Login",function(){S.page="login";render();},"linear-gradient(135deg,"+C.pur+","+C.purD+")","#fff",{fontSize:"14px",padding:"13px 28px",fontWeight:"800",borderRadius:"12px"}));
+  return wrap;
+}
+
 
 
 
@@ -1882,38 +1942,13 @@ function buildTechProfile(){
 // ══════════════════════════════════════════════════════════
 var SCAN_FIELDS=[["ignore","Ignore"],["site","Site Name"],["town","Town"],["contact","Client Contact"],["phone","Phone"],["address","Address"],["description","Description"]];
 
-// Matches "<label><optional extra words>[: -]<value>" and lets us strip the label off.
-var OCR_LABEL_PATTERNS=[
-  ["phone",/^(cell|mobile|tel|telephone|phone|contact\s*number|number)\s*(no\.?|nr\.?)?\s*[:\-]\s*(.+)$/i],
-  ["site",/^(site|site\s*name|job\s*site|location|school|building|premises)\s*[:\-]\s*(.+)$/i],
-  ["town",/^(town|city|suburb|area)\s*[:\-]\s*(.+)$/i],
-  ["address",/^(address|street|physical\s*address)\s*[:\-]\s*(.+)$/i],
-  ["contact",/^(contact|client|client\s*name|customer|customer\s*name|name)\s*[:\-]\s*(.+)$/i]
-];
-
 function ocrGuessField(text){
-  // Phone number appearing anywhere on the line, regardless of label wording/OCR noise
   if(/(\+?27[\s-]?\d{9})|(\b0\d{2}[\s-]?\d{3}[\s-]?\d{4}\b)/.test(text))return "phone";
-  for(var i=0;i<OCR_LABEL_PATTERNS.length;i++){
-    if(OCR_LABEL_PATTERNS[i][1].test(text))return OCR_LABEL_PATTERNS[i][0];
-  }
+  if(/^(site|location|school|building)[:\s]/i.test(text))return "site";
+  if(/^(town|city|suburb)[:\s]/i.test(text))return "town";
+  if(/^(address|street)[:\s]/i.test(text))return "address";
+  if(/^(contact|client|name)[:\s]/i.test(text))return "contact";
   return "description";
-}
-
-// Strips a recognized label prefix off a line, leaving just the value.
-// Falls back to the raw phone regex match, then to the original text unchanged.
-function ocrStripLabel(text,field){
-  if(field==="phone"){
-    var m=text.match(/(\+?27[\s-]?\d{9})|(\b0\d{2}[\s-]?\d{3}[\s-]?\d{4}\b)/);
-    if(m)return m[0].trim();
-  }
-  for(var i=0;i<OCR_LABEL_PATTERNS.length;i++){
-    if(OCR_LABEL_PATTERNS[i][0]===field){
-      var mm=text.match(OCR_LABEL_PATTERNS[i][1]);
-      if(mm&&mm[mm.length-1])return mm[mm.length-1].trim();
-    }
-  }
-  return text.trim();
 }
 
 function runJobCardScan(file){
@@ -1963,7 +1998,7 @@ function buildScanReview(){
     (S.scanLines||[]).forEach(function(ln){
       if(ln.assign==="ignore")return;
       if(ln.assign==="description")descLines.push(ln.text);
-      else S.njForm[ln.assign]=ocrStripLabel(ln.text,ln.assign);
+      else S.njForm[ln.assign]=ln.text;
     });
     if(descLines.length){
       S.njForm.description=(S.njForm.description?S.njForm.description+"\n":"")+descLines.join("\n");
@@ -2128,12 +2163,96 @@ function buildPrintGateModal(){
 }
 
 
+
+// ══════════════════════════════════════════════════════════
+// ── ACCESS REQUESTS — superadmin reviews invite requests ──
+// ══════════════════════════════════════════════════════════
+function buildAccessRequests(){
+  var ov=d({position:"fixed",inset:"0",background:"#000a",zIndex:"100",display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"});
+  var card=d({background:C.card,borderRadius:"18px",padding:"22px",width:"100%",maxWidth:"560px",border:"1px solid "+C.grn+"44",maxHeight:"88vh",overflowY:"auto"});
+
+  var tp=d({display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"});
+  var hd=d({fontSize:"16px",fontWeight:"800"});hd.textContent="📨 Access Requests";
+  tp.appendChild(hd);tp.appendChild(btn("✕",function(){S.showAccessRequests=false;render();},C.bdr,C.sft,{border:"none",padding:"5px 10px"}));
+  card.appendChild(tp);
+  var sub=d({fontSize:"12px",color:C.mut,marginBottom:"18px"});sub.textContent="People requesting access to NEXORA. Review and reach out by email.";
+  card.appendChild(sub);
+
+  var pending=(S.accessRequests||[]).filter(function(r){return r.status==="pending";});
+  var done=(S.accessRequests||[]).filter(function(r){return r.status!=="pending";});
+
+  var pLbl=d({fontSize:"11px",fontWeight:"700",color:C.org,marginBottom:"8px",textTransform:"uppercase"});pLbl.textContent="⏳ Pending ("+pending.length+")";
+  card.appendChild(pLbl);
+
+  if(pending.length===0){
+    var em=d({fontSize:"12px",color:C.mut,padding:"10px 0"});em.textContent="No pending requests.";
+    card.appendChild(em);
+  }
+
+  function reqCard(r){
+    var box=d({background:"#07101f",border:"1px solid "+C.bdr,borderRadius:"10px",padding:"14px",marginBottom:"10px"});
+    var top=d({display:"flex",justifyContent:"space-between",marginBottom:"6px"});
+    var nm=d({fontSize:"14px",fontWeight:"700"});nm.textContent=r.company;
+    var st=d({fontSize:"9px",fontWeight:"700",padding:"3px 9px",borderRadius:"99px"});
+    if(r.status==="approved"){st.style.background=C.grn+"22";st.style.color=C.grn;st.textContent="✓ APPROVED";}
+    else if(r.status==="rejected"){st.style.background=C.red+"22";st.style.color=C.red;st.textContent="✕ REJECTED";}
+    else{st.style.background=C.org+"22";st.style.color=C.org;st.textContent="⏳ PENDING";}
+    top.appendChild(nm);top.appendChild(st);
+    box.appendChild(top);
+    var lines=[
+      "👤 "+r.name+(r.isOwner==="yes"?" (Owner)":""),
+      "✉️ "+r.email,
+      "🏢 "+(r.regType==="company"?"Registered Company"+(r.vat?" · VAT: "+r.vat:""):"Private Individual"),
+      "👥 "+r.staffCount+" staff members",
+      "📣 Heard via: "+r.heardFrom,
+      "🕐 "+r.submittedAt
+    ];
+    lines.forEach(function(l){
+      var line=d({fontSize:"11px",color:C.sft,marginBottom:"3px"});line.textContent=l;
+      box.appendChild(line);
+    });
+    if(r.status==="pending"){
+      var acts=d({display:"flex",gap:"8px",marginTop:"10px"});
+      acts.appendChild(btn("✅ Approve",function(){
+        r.status="approved";
+        if(db){try{db.ref("accessRequests/"+r.id+"/status").set("approved");}catch(e){}}
+        render();
+      },C.grn,"#fff",{fontSize:"12px",padding:"8px 14px",fontWeight:"700",flex:"1"}));
+      acts.appendChild(btn("✕ Reject",function(){
+        r.status="rejected";
+        if(db){try{db.ref("accessRequests/"+r.id+"/status").set("rejected");}catch(e){}}
+        render();
+      },C.red+"22",C.red,{fontSize:"12px",padding:"8px 14px",fontWeight:"700",flex:"1"}));
+      var emailBtn=h("a",{background:C.cyn,color:"#fff",borderRadius:"8px",padding:"8px 14px",fontSize:"12px",fontWeight:"700",textDecoration:"none",textAlign:"center",flex:"1",display:"flex",alignItems:"center",justifyContent:"center"},null,{
+        href:"mailto:"+r.email+"?subject="+encodeURIComponent("Welcome to NEXORA, "+r.name+"!")+"&body="+encodeURIComponent("Hi "+r.name+",\n\nThanks for requesting access to NEXORA for "+r.company+"!\n\nHere are your login details:\nUsername: \nPassword: \n\nWelcome aboard!\n\n— The NEXORA Team\nsupport@nexorapaperfree.org")
+      });
+      emailBtn.textContent="✉️ Email";
+      acts.appendChild(emailBtn);
+      box.appendChild(acts);
+    }
+    return box;
+  }
+
+  pending.forEach(function(r){card.appendChild(reqCard(r));});
+
+  if(done.length>0){
+    var dLbl=d({fontSize:"11px",fontWeight:"700",color:C.sft,margin:"18px 0 8px",textTransform:"uppercase"});dLbl.textContent="Processed ("+done.length+")";
+    card.appendChild(dLbl);
+    done.forEach(function(r){card.appendChild(reqCard(r));});
+  }
+
+  ov.appendChild(card);
+  return ov;
+}
+
+
 function render(){
   var app=document.getElementById("app");
   app.innerHTML="";
   if(S.page==="loading"){app.appendChild(buildLoader());return;}
   if(S.page==="about"){app.appendChild(buildAboutNexora());return;}
   if(S.page==="signup"){app.appendChild(buildSignup());return;}
+  if(S.page==="requestSent"){app.appendChild(buildRequestSent());return;}
   if(S.page==="login"){app.appendChild(buildLogin());return;}
   app.appendChild(buildMain());
 }
@@ -2220,7 +2339,7 @@ function buildLogin(){
   var hint=d({textAlign:"center",marginTop:"16px",fontSize:"11px",color:C.mut});hint.textContent="Contact admin for login credentials";
   card.appendChild(hint);wrap.appendChild(card);
   var signupLink=d({textAlign:"center",marginTop:"18px",zIndex:"1"});
-  signupLink.appendChild(btn("✨ Create a Free Account",function(){S.page="signup";render();},"linear-gradient(135deg,"+C.grn+",#0d9668)","#fff",{fontSize:"13px",padding:"11px 22px",fontWeight:"800",borderRadius:"10px"}));
+  signupLink.appendChild(btn("📨 Request Access",function(){S.page="signup";render();},"linear-gradient(135deg,"+C.grn+",#0d9668)","#fff",{fontSize:"13px",padding:"11px 22px",fontWeight:"800",borderRadius:"10px"}));
   wrap.appendChild(signupLink);
   var aboutLink=d({textAlign:"center",marginTop:"14px",zIndex:"1"});
   aboutLink.appendChild(btn("🌳 The Story Behind NEXORA",function(){S.page="about";render();window.scrollTo(0,0);},"transparent",C.cyn,{border:"1px solid "+C.cyn+"33",fontSize:"12px",padding:"9px 16px",fontWeight:"700"}));
@@ -2250,6 +2369,7 @@ function buildMain(){
   if(S.showCompanySettings)wrap.appendChild(buildCompanySettings());
   if(S.showInventory)wrap.appendChild(buildInventory());
   if(S.viewTechId)wrap.appendChild(buildTechProfile());
+  if(S.showAccessRequests)wrap.appendChild(buildAccessRequests());
   if(S.showScanReview)wrap.appendChild(buildScanReview());
   if(S.sendInvoiceAlert)wrap.appendChild(buildSendInvoiceAlert());
   if(S.printGate)wrap.appendChild(buildPrintGateModal());
@@ -2296,6 +2416,17 @@ function buildHeader(){
   }
   if(isA){rgt.appendChild(btn("🏢",function(){S.showCompanySettings=true;render();},C.card,C.txt,{border:"1px solid "+C.bdr,fontSize:"13px",padding:"5px 9px"}));}
   if(isA){rgt.appendChild(btn("📦",function(){S.showInventory=true;render();},C.card,C.txt,{border:"1px solid "+C.bdr,fontSize:"13px",padding:"5px 9px"}));}
+  if(S.user.role==="superadmin"){
+    var pendingCount=(S.accessRequests||[]).filter(function(r){return r.status==="pending";}).length;
+    var reqWrap=d({position:"relative"});
+    reqWrap.appendChild(btn("📨",function(){S.showAccessRequests=true;render();},C.card,C.txt,{border:"1px solid "+C.bdr,fontSize:"13px",padding:"5px 9px"}));
+    if(pendingCount>0){
+      var rbadge=d({position:"absolute",top:"-4px",right:"-4px",background:C.org,color:"#fff",fontSize:"9px",fontWeight:"900",borderRadius:"99px",minWidth:"15px",height:"15px",display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px",boxShadow:"0 0 0 2px "+C.panel});
+      rbadge.textContent=String(pendingCount);
+      reqWrap.appendChild(rbadge);
+    }
+    rgt.appendChild(reqWrap);
+  }
   var av=d({display:"flex",alignItems:"center",gap:"5px",background:C.card,border:"1px solid "+C.bdr,borderRadius:"99px",padding:"4px 9px",cursor:"pointer"});
   var avc=d({width:"20px",height:"20px",borderRadius:"50%",background:"linear-gradient(135deg,"+C.pur+","+C.cyn+")",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"10px",fontWeight:"800"});avc.textContent=S.user.name[0];
   var avn=h("span",{fontSize:"11px",color:C.sft,maxWidth:"65px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"});avn.textContent=S.user.name;
@@ -2961,13 +3092,9 @@ function buildNewJob(){
       steps:cs.length?cs:[{id:1,text:"Complete job",qty:1,done:false}],
       trips:[{num:1,comments:"",materials:"",travelSec:0,siteSec:0,travelStart:null,siteStart:null,photosBefore:[],photosAfter:[],complete:false}],
       currentTrip:0,createdBy:S.user.name};
-    db.ref("jobs/"+id).set(job).then(function(){
-      S.jobs[id]=job;
-      S.njForm={site:"",type:"Installation",town:"",tech:"",contact:"",phone:"",email:"",address:"",description:"",priority:"Normal"};
-      S.njSteps=[{id:1,text:"",qty:1}];S.page="main";render();
-    }).catch(function(err){
-      alert("Job card was NOT saved: "+(err&&err.message?err.message:"unknown error")+"\n\nYour entries are still in the form — please try again.");
-    });
+    db.ref("jobs/"+id).set(job).catch(function(){});S.jobs[id]=job;
+    S.njForm={site:"",type:"Installation",town:"",tech:"",contact:"",phone:"",email:"",address:"",description:"",priority:"Normal"};
+    S.njSteps=[{id:1,text:"",qty:1}];S.page="main";render();
   },C.grn,"#fff",{fontSize:"14px"}));
   ar.appendChild(btn("Cancel",function(){S.page="main";render();},C.bdr,C.sft,{border:"1px solid "+C.bdr,fontSize:"14px"}));
   wrap.appendChild(ar);return wrap;
@@ -3165,6 +3292,27 @@ function buildUsers(){
     render();
   },C.pur,"#fff",{width:"100%"}));
   card.appendChild(fg);
+
+  // ── Invite Team Member (Managers/Admins/Team Leaders/Assistants — via NEXORA) ──
+  var inviteBox=d({background:C.cyn+"11",border:"1px solid "+C.cyn+"33",borderRadius:"11px",padding:"13px",marginBottom:"16px"});
+  var inviteLbl=d({fontSize:"12px",fontWeight:"700",color:C.cyn,marginBottom:"6px"});inviteLbl.textContent="✉️ Need a Manager, Admin, Team Leader or Assistant added?";
+  var inviteSub=d({fontSize:"11px",color:C.mut,marginBottom:"10px"});inviteSub.textContent="These roles are set up by our team for security. Send us their details and we'll get them loaded.";
+  inviteBox.appendChild(inviteLbl);inviteBox.appendChild(inviteSub);
+
+  var iv={name:"",email:"",role:"Manager"};
+  var ivRow=d({display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"8px"});
+  ivRow.appendChild(inp("Their full name","",function(v){iv.name=v;}));
+  ivRow.appendChild(inp("Their email","",function(v){iv.email=v;},"email"));
+  inviteBox.appendChild(ivRow);
+  inviteBox.appendChild(sel(["Manager","Admin","Team Leader","Assistant"],iv.role,function(v){iv.role=v;},{marginBottom:"10px"}));
+
+  inviteBox.appendChild(btn("✉️ Send Request to NEXORA",function(){
+    if(!iv.name||!iv.email){alert("Please fill in their name and email first.");return;}
+    var body="Hi NEXORA Team,\n\nPlease could you add a new team member to our account:\n\nCompany: "+S.user.company+"\nRequested by: "+S.user.name+" ("+S.user.username+")\n\nNew person's name: "+iv.name+"\nNew person's email: "+iv.email+"\nRole requested: "+iv.role+"\n\nThank you!";
+    window.open("mailto:support@nexorapaperfree.org?subject="+encodeURIComponent("New "+iv.role+" for "+S.user.company)+"&body="+encodeURIComponent(body),"_blank");
+  },C.cyn,"#fff",{width:"100%",fontSize:"12px",padding:"10px",fontWeight:"700"}));
+  card.appendChild(inviteBox);
+
   var ul=d({fontSize:"12px",color:C.sft,fontWeight:"700",textTransform:"uppercase",letterSpacing:"1px",marginBottom:"2px"});ul.textContent="Current Users";card.appendChild(ul);
   var ulHint=d({fontSize:"10px",color:C.mut,marginBottom:"9px"});ulHint.textContent="Tap anyone to view their job history & progress";card.appendChild(ulHint);
   var ul2=d({display:"grid",gap:"7px"});
