@@ -3317,6 +3317,18 @@ function buildUsers(){
     if(!iv.name||!iv.email){e.preventDefault();alert("Please fill in their name and email first.");}
   });
   inviteBox.appendChild(mailBtn);
+  var copyBtn=btn("📋 Copy Details (if email doesn't open)",function(){
+    if(!iv.name||!iv.email){alert("Please fill in their name and email first.");return;}
+    var body="To: support@nexorapaperfree.org\nSubject: New "+iv.role+" for "+S.user.company+"\n\nHi NEXORA Team,\n\nPlease could you add a new team member to our account:\n\nCompany: "+S.user.company+"\nRequested by: "+S.user.name+" ("+S.user.username+")\n\nNew person's name: "+iv.name+"\nNew person's email: "+iv.email+"\nRole requested: "+iv.role+"\n\nThank you!";
+    if(navigator.clipboard){
+      navigator.clipboard.writeText(body).then(function(){
+        try{treeFactToastCustom("📋 Copied!","Paste this into Gmail or any email app and hit send.");}catch(e){alert("Copied! Paste it into Gmail or any email app and hit send.");}
+      }).catch(function(){alert("Couldn't copy automatically. Please screenshot this instead:\n\n"+body);});
+    } else {
+      alert("Copy this and paste into your email:\n\n"+body);
+    }
+  },C.bdr,C.cyn,{width:"100%",fontSize:"11px",padding:"9px",fontWeight:"700",marginTop:"8px",border:"1px solid "+C.cyn+"33"});
+  inviteBox.appendChild(copyBtn);
   card.appendChild(inviteBox);
 
   var ul=d({fontSize:"12px",color:C.sft,fontWeight:"700",textTransform:"uppercase",letterSpacing:"1px",marginBottom:"2px"});ul.textContent="Current Users";card.appendChild(ul);
