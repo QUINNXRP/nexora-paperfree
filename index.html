@@ -3295,6 +3295,27 @@ function buildUsers(){
 
   // ── Invite Team Member (Managers/Admins/Team Leaders/Assistants — via NEXORA) ──
   var inviteBox=d({background:C.cyn+"11",border:"1px solid "+C.cyn+"33",borderRadius:"11px",padding:"13px",marginBottom:"16px"});
+  var shareBox=d({background:C.grn+"11",border:"1px solid "+C.grn+"33",borderRadius:"11px",padding:"13px",marginBottom:"14px"});
+  var shareLbl=d({fontSize:"12px",fontWeight:"700",color:C.grn,marginBottom:"6px"});shareLbl.textContent="🌳 Let Them Explore NEXORA First";
+  var shareSub=d({fontSize:"11px",color:C.mut,marginBottom:"10px"});shareSub.textContent="Best way to invite someone — send them the app link. They'll see exactly what NEXORA can do for them, then request access themselves.";
+  shareBox.appendChild(shareLbl);shareBox.appendChild(shareSub);
+  var shareMsg="Hi! I'd like to invite you to check out NEXORA — the field ops platform we use at "+S.user.company+".\n\nTake a look here: https://nexorapaperfree.org\n\nYou'll see exactly what it does, then you can request access right from the site.\n\n— "+S.user.name;
+  var shareRow=d({display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"7px"});
+  var waLink=h("a",{display:"flex",alignItems:"center",justifyContent:"center",background:"#128C7E",color:"#fff",borderRadius:"8px",padding:"9px 4px",fontSize:"11px",fontWeight:"700",textDecoration:"none",textAlign:"center"},null,{href:"https://wa.me/?text="+encodeURIComponent(shareMsg),target:"_blank"});
+  waLink.textContent="💬 WhatsApp";
+  var smsLink=h("a",{display:"flex",alignItems:"center",justifyContent:"center",background:C.grn,color:"#fff",borderRadius:"8px",padding:"9px 4px",fontSize:"11px",fontWeight:"700",textDecoration:"none",textAlign:"center"},null,{href:"sms:?body="+encodeURIComponent(shareMsg)});
+  smsLink.textContent="📱 SMS";
+  var copyShareBtn=btn("📋 Copy",function(){
+    if(navigator.clipboard){
+      navigator.clipboard.writeText(shareMsg).then(function(){
+        try{treeFactToastCustom("📋 Copied!","Paste it anywhere — WhatsApp, email, Slack.");}catch(e){alert("Copied!");}
+      }).catch(function(){alert("Copy this:\n\n"+shareMsg);});
+    } else { alert("Copy this:\n\n"+shareMsg); }
+  },C.bdr,C.grn,{fontSize:"11px",padding:"9px 4px",fontWeight:"700",border:"1px solid "+C.grn+"33"});
+  shareRow.appendChild(waLink);shareRow.appendChild(smsLink);shareRow.appendChild(copyShareBtn);
+  shareBox.appendChild(shareRow);
+  card.appendChild(shareBox);
+
   var inviteLbl=d({fontSize:"12px",fontWeight:"700",color:C.cyn,marginBottom:"6px"});inviteLbl.textContent="✉️ Need a Manager, Admin, Team Leader or Assistant added?";
   var inviteSub=d({fontSize:"11px",color:C.mut,marginBottom:"10px"});inviteSub.textContent="These roles are set up by our team for security. Send us their details and we'll get them loaded.";
   inviteBox.appendChild(inviteLbl);inviteBox.appendChild(inviteSub);
